@@ -1,0 +1,28 @@
+\begin{abstract}
+Just as some functions have uniform behavior over distinct types,
+other functions have uniform behavior over distinct arities.  These
+variable-arity functions are widely used in scripting languages such
+as Scheme and Python. Statically typed languages also accommodate
+modest forms of variable-arity functions, but even ML and Haskell,
+languages with highly expressive type systems, cannot type check the
+wide variety of variable-arity functions found in untyped functional
+languages. Consequently, their standard libraries contain numerous copies of
+the same function definition with slightly different names.
+
+As part of the Typed Scheme project---an on-going effort to create an
+explicitly typed sister language for PLT Scheme---we have designed and
+implemented an expressive type system for variable-arity
+functions.  Our practical validation in the context of our extensive
+code base confirms the usefulness of the enriched type system.
+
+
+%% Just as many functions have uniform behavior over all types of
+%% arguments, other functions have uniform behavior over varying numbers
+%% of arguments.  Such functions are widely used in Scheme, and often
+%% emulated with copied code in typed languages.  As part of the Typed
+%% Scheme project, we have designed a type system which handles rest
+%% arguments of both uniform and non-uniform types, and which covers the
+%% use cases required to typechecking existing Scheme code.  We also
+%% sketch a local inference algorithm and describe practical experience
+%% with the system.
+\end{abstract}

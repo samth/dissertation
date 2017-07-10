@@ -1,0 +1,360 @@
+\begin{schemeregion}
+\section{Modules, or You Want it When, Again?}
+\label{sect:modules}
+
+The PLT Scheme module system~\cite{f:modules} allows programmers to
+group definitions, use imports and exports to control the
+scope of names, and specify the dependencies between modules. The
+presence of macros complicates the notion of dependence between
+modules.
+
+In the presence of procedural macros, a compiler must execute parts of
+a program in order to deal with the remainder of the program. This
+blurs the line between compilation and execution.
+%
+In particular, an interpreter may draw the line in a different place
+than the compiler, requiring programmers to debug their compiled
+program after they have already debugged their interpreted program. To
+eliminate this potential for inconsistency, the PLT Scheme module
+system require explicit module dependencies and, based on these, 
+provides uniform behavior in both interactive and
+batch-compilation mode.
+
+% Modules are compilation units, and every module must be compiled
+% before it can be used. Modules contain declarations of their direct
+% dependencies. When a module is compiled, the module system uses those
+% declarations to determine the portions of existing modules that must
+% be executed to support the compilation of the current module. 
+% %
+% If a macro transformer depends on a value definition, the macro's
+% module must declare a ``for-syntax'' dependency on the value
+% definition's module.
+% %
+% Scoping rules prevent access from macros to undeclared run-time
+% dependencies, and the compiler creates separate instantiations of
+% declared dependencies to prevent interference across separate
+% compilations.
+
+\subsection{Split environments}
+
+Syntactically, a module declaration contains a
+module reference specifying the language that the module is written
+in, the module's name, and a sequence of definitions and expressions. 
+In our examples, the module's name is left implicit, and provided in
+a comment. In the PLT Scheme implementation, the name is taken from
+the filename.
+\begin{schemedisplay}
+hlang initial-language ;; module-name
+module-contents $\cdots$
+\end{schemedisplay}
+Denotationally, a module consists of two code parts (plus a dependency
+specification): a compile-time
+component and a run-time component. The compile-time part consists of
+the syntax definitions. The run-time part consists of ordinary
+definitions and expressions. 
+
+The compiler keeps separate environments for the compile-time
+expressions and run-time expressions. If a module defines a procedure
+as a run-time value, a macro transformer in the same module cannot
+\emph{use} that procedure; the binding is unavailable in the
+compile-time phase. The macro can, of course, expand into code that
+\emph{refers} to the procedure.  Likewise, a binding in the
+compile-time phase cannot be used in the run-time phase. This phase
+separation permits the compiler to compile a module without also
+executing its entire contents.%
+\footnote{The same name may have (possibly distinct) meanings in both phases
+ simultaneously. For example, modules written in the \scheme{scheme}
+ language automatically import all primitive bindings into both
+ phases.}
+
+The two environments yield two kinds of module dependencies and thus two
+distinct module import forms. The plain \scheme{require} form imports
+bindings into the  environment for run-time expressions, and the
+\scheme{for-syntax} variant imports bindings into the
+environment for compile-time expressions.
+
+\begin{figure}
+\begin{schemedisplay}
+langs ;; macro-util
+(provide check-for-duplicate-identifier)
+(define (check-for-duplicate-identifier ids) ELIDED)
+
+langs ;; rec
+(require (for-syntax macro-util))
+(define-syntax (recur stx)
+  (syntax-case stx ()
+    [(recur name ([var init] ...) . body)
+     (begin
+       (check-for-duplicate-identifier #'(var ...))
+       #'(letrec ([name (lambda (var ...) . body)])
+	   (name init ...)))]))
+(define (build-list n f)
+  (recur loop ([i 0])
+    (if (< i n)
+	(cons (f i) (loop (+ i 1)))
+	null)))
+\end{schemedisplay}
+\caption{Four kinds of references}
+\label{fig:four-references}
+\end{figure}
+
+Macros bridge the gap between the two phases. The implementation of a
+macro is a compile-time expression, but the macro definition extends
+the environment for run-time expressions. To understand this idea, it
+is important to distinguish between the notions of macro versus value
+bindings from the notions of environments for compile-time versus run-time
+expressions.
+
+The modules in Figure~\ref{fig:four-references} illustrate the four
+different possibilities.
+%
+In the context of the \scheme{rec} module,
+\scheme{check-for-duplicate-identifier} is a value binding in the
+compile-time environment; thus, it is available for use in the body of
+the \scheme{recur} macro definition. Even though
+\scheme{check-duplicate-identifier} is a ``compile-time procedure,''
+it is not a macro. In fact, it cannot be used in run-time expressions
+at all.
+%
+In contrast, \scheme{recur} is a macro binding in the run-time
+environment. It is bound to a compile-time value, but the
+binding is available to run-time expressions such as the definition of
+\scheme{build-list}.
+%
+The occurrence of \scheme{syntax-case} refers to a macro binding in
+the compile-time environment. Finally, the definition of
+\scheme{build-list} creates a value binding in the run-time
+environment.
+
+Compilation of a module involves executing its dependencies%
+\footnote{If the module depends on modules that are not already
+  compiled, they are automatically compiled when the dependency is
+  detected.} and expanding uses of macros in the module's body. The
+dependencies include the compile-time part of the module's initial
+language module, the compile-time part of every module imported with
+\scheme{require}, and both compile-time and run-time parts of every
+module imported with \scheme{for-syntax} inside \scheme|require|. 
+
+The rules for compilation (and also for invoking a module's compile
+time part) are as follows:
+\begin{itemize}
+\item
+For every \scheme{require} import, including the initial language
+module, invoke that module's compile-time part in the same phase.
+\item
+For every \scheme{for-syntax} import, invoke that module's
+compile-time and run-time parts in the next higher phase.
+\end{itemize}
+If a module is imported twice, once with plain \scheme{require} and once with
+\scheme{for-syntax}, the two corresponding invocations of the
+module are separate. They do not share mutable state. The module
+system uses phase numbers to distinguish the different instances.
+%
+Finally, a module is invoked only once per phase, per
+compilation. Multiple modules that depend on a single module in the
+same phase share a single invocation of that module and its state.
+
+\subsection{Compilation independence}
+
+True separate compilation is impossible in a module system that
+supports the import and export of macros. Instead, the module system
+has a principle of compilation independence:
+\begin{quote}
+Compiling a module depends only on the compiled forms of the
+modules that it (transitively) requires.
+\end{quote}
+This principle has two consequences:
+\begin{itemize}
+\item The compilation of two modules, neither of which transitively
+  requires the other, should produce the same two results no matter
+  which is compiled first, or whether they are compiled in parallel.
+\item The compilation of a module does not depend on side effects that
+  occurred during the compilation of modules that it transitively
+  requires. This has important implications for the use of
+  side-effects at compile time.
+\end{itemize}
+
+The compiler effectively creates a new store for each module
+that it compiles. Each compilation gets a new execution of all
+supporting module code.
+%
+Since the result of the compilation process is nothing but a body of
+code, the states of mutable variables and objects created during the
+compilation process of any module are discarded at the end.
+
+The pair of modules in figure~\ref{fig:side-effect}
+ illustrates the interaction between
+side-effects and compilation.
+\begin{figure}
+\begin{schemedisplay}
+langs ;; storage
+(define storage '())
+(define (add! x) (set! storage (cons x storage)))
+(provide storage add!)
+
+langs ;; memory
+(require (for-syntax storage))
+(define-syntax (remember stx)
+  (syntax-case stx ()
+    [(remember sym)
+     (begin (add! (syntax->datum #'sym))
+	    (with-syntax ([syms storage])
+              #`(begin (display (quote syms))
+		       (newline))))]))
+(remember a)
+(remember b)
+\end{schemedisplay}
+\caption{Side Effects and Compilation}
+\label{fig:side-effect}
+\end{figure}
+The first module defines two variables. The second module accesses the
+variables at compile time, so it imports the first module via
+\scheme{for-syntax}. It defines a \scheme{remember} macro that
+adds a symbol to the remembered list and generates code to print out
+the updated list of remembered symbols. Then it uses the macro
+twice. At the end of compiling the \scheme{memory} module, the
+\scheme{storage} variable has the value \schemeresult{(b a)}. Executing the
+\scheme{memory} module prints out the lists \schemeresult{(a)} and
+\schemeresult{(b a)}, as expected.
+
+Consider the following addition to the program:
+\begin{schemedisplay}
+langs ;; inspect-storage
+(require storage)
+(require memory)
+(display storage) (newline)
+\end{schemedisplay}
+When this module is executed, the last line it prints out is
+\schemeresult{()}, not \schemeresult{(b a)}, because the
+\emph{run-time} instance of the \scheme{storage} module is distinct
+from the \emph{compile-time} instance. That is, side-effects do not
+cross phases.
+
+Now consider this further addition to the program:
+\begin{schemedisplay}
+langs ;; more
+(require memory)
+(remember c)
+\end{schemedisplay}
+When this module is executed, the last line it prints out is
+\schemeresult{(c)}, not \schemeresult{(c b a)}.
+%
+% This result often surprises macro programmers. Many of them expect the
+% final line to be \schemeresult{(c b a)}. It seems to them as if the
+% effects in \scheme{memory} occur and are subsequently unwound behind
+% their backs. Programming with compile-time side effects can result in
+% unexpected behavior---or lack of behavior---unless programmers
+% recognize the forgetful nature of the compilation process.
+%
+The reason that the \scheme{(remember c)} in \scheme{more} prints just 
+\schemeresult{(c)} is that \scheme{more} was compiled with a fresh
+instance of \scheme{storage} (initially the empty list), and because
+executing the compile-time part of \scheme{memory} does not change
+that value. The variable is updated during \emph{macro expansion};
+the side-effects are not present in the compiled form of
+\scheme{memory}:
+\begin{schemedisplay}
+(compiled-module memory
+  (require scheme)
+  (require (for-syntax storage))
+  (define-syntax (remember stx) ELIDED)
+  (begin (display '(a)) (newline))
+  (begin (display '(b a)) (newline)))
+\end{schemedisplay}
+\input{fig-module-instances}
+Figure~\ref{fig:module-invocations} shows all of the module invocations
+involved in compiling and executing the program \scheme|more|. Each box represents
+a module invocation, and the text at the bottom of each box indicates
+what parts of the module are executed. Each column represents a shared
+store; effects in one column are not visible in another column.
+
+The furthest left column simply represents the compilation of
+\scheme|storage|---this module has no \scheme|for-syntax|
+dependencies, and so its compilation triggers no computation in other
+modules.  The second column is the compilation of \scheme|memory|,
+which requires first running the compile-time portions of the
+\scheme|storage| module, since \scheme|memory| requires
+\scheme|storage| \scheme|for-syntax|,
+then expanding any macros in the \scheme|memory| module. The first two
+columns are performed since \scheme|storage| and \scheme|memory| are
+both dependencies of \scheme|more|.
+Third, the \scheme|more| module is compiled.  This requires running
+the compile-time portion of \scheme|memory| (which is
+\scheme|require|d by \scheme|more|) and therefore the compile- and run-time
+portions of \scheme|storage| (which is \scheme|require|d
+\scheme|for-syntax| by \scheme|memory|).  Finally, the fourth column
+is the final runtime, which invokes both the compile- and run-time
+portions of \scheme|more| and \scheme|memory|, as well as
+\scheme|storage|.  
+
+\subsection{Persistent effects}
+\label{sect:syntax:persistent}
+
+The compilation rules of the module system require the development of
+ a design pattern for expressing persistent effects.
+%
+Since compile-time side effects are transient, only the code in the compiled
+module is permanent. Thus, the way to express a persistent effect is
+to make it part of the module:
+\begin{schemedisplay}
+langs ;; memory.v2
+(require (for-syntax storage))
+(define-syntax (storage-now stx)
+  (syntax-case stx ()
+    [(storage-here)
+     (with-syntax ([syms storage])
+       #'(quote syms))]))
+(define-syntax (remember stx)
+  (syntax-case stx ()
+    [(remember sym)
+     #'(begin (define-syntax _ (add! (quote sym)))
+	      (display (storage-now))
+	      (newline))]))
+(remember a)
+(remember b)
+\end{schemedisplay}
+The effect of adding new symbols to the \scheme|storage| variable
+ is not executed within the macro, but the macro expander
+executes the resulting \scheme{define-syntax} form when it continues
+expanding the module body, so the effect of the first addition to the
+list still occurs before the second \scheme{remember} is
+expanded. This version introduces a helper macro,
+\scheme{storage-now}, to retrieve the value of \scheme{storage} after
+the update.
+
+Since the compile-time part of a compiled module includes all of the
+macro definitions, the side-effect is preserved:
+\begin{schemedisplay}
+(compiled-module memory.v2
+  (require scheme)
+  (require (for-syntax storage))
+  (define-syntax (storage-now stx) ELIDED)
+  (define-syntax (remember stx) ELIDED)
+  (define-syntax _1 (add! 'a))
+  (display '(a)) (newline)
+  (define-syntax _2 (add! 'b))
+  (display '(b a)) (newline))
+\end{schemedisplay}
+The calls to \scheme{add!} are executed whenever
+\scheme{memory} is required for the compilation of another
+module. Thus they are executed when \scheme{more.v2} is compiled
+(refer back to Figure~\ref{fig:module-invocations}), so the storage is
+already set to \scheme{(b a)} when the use of \scheme{remember} in
+\scheme{more} is expanded. Thus, executing the new version of
+the program prints \scheme{(c b a)}.
+
+As a matter of readability, the \scheme{begin-for-syntax} form
+accomplishes the same effect as the awkward use of
+\scheme{define-syntax} with a throw-away name. Using
+\scheme{begin-for-syntax} also explicitly signals the programmer's
+intent to generate an expression that creates a persistent effect.
+
+%In summary:
+%\begin{itemize}
+%\item Persistent effects must be part of the compiled module.
+%\item \scheme{require} forms indicate dependence, not just the import
+%  of names.
+%\item There is no way for one module to affect another module that
+%  doesn't depend on it.
+%\end{itemize}
+\end{schemeregion}

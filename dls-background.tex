@@ -1,0 +1,306 @@
+\newbfop\dlsint{int}
+\def\ii{\dlsproctype{\dlsint}{\dlsint}}
+
+\begin{schemeregion}
+
+This chapter presents a formal account of the integration of typed and
+untyped code  in a single program.  For simplicity, we consider only a
+simple type system and module system.  Further, we restrict the
+language to have only one typed module.  
+
+\section{Relationship to Typed Scheme}
+
+% Of course, the implementation
+% of Typed Scheme works with the full type system as well as with
+% arbitrary combinations of typed and untyped modules.  
+
+This chapter presents a formalism that admits only simple types.
+Further, each module may contain exactly one expression, and other modules
+are referred to implicitly.  Finally, there may only be one typed
+module in the system.  This formalism, initially designed and
+published prior to the implementation of Typed Scheme, is thus
+inadequate for direct use in Typed Scheme. 
+
+Therefore, in the full Typed Scheme language, several changes are
+made.  First, a program may consist of an arbitrary combination of
+arbitrarily many typed and untyped modules.  Second, each module
+explicitly specifies which modules it depends upon.  Third, and most
+significantly, the importing typed module must specify the types to be
+assigned to any imports from untyped modules.  
+
+The implemented system has a number of advantages.  First, the type
+specifications for imports provide checked documentation of the
+expected behavior of the untyped code.  Second, as in the wrapper
+modules presented in this chapter, they provide a localized target of
+blame.  Therefore, when the untyped module fails to live up to the
+contract assigned to it, instead of blaming the untyped module, which
+may not be at fault, the type specification is blamed instead.  Third,
+it does not require the complex contract inference process from this
+chapter for determining the desired type of imported untyped identifiers.  
+
+Of course, the crucial result of this chapter,
+theorem~\ref{thm:dlsmain}, is still applicable to the resulting
+system, despite these changes.  Developing a formalism that more
+accurately captures the design of the Typed Scheme implementation
+remains  future work.
+
+\section{An Informal Tour}
+
+To make things simple, we assume that a program is a sequence of
+modules followed by a ``main expression.''
+
+The evaluation of such a program starts with the main expression. Evaluation
+ proceeds as usual in an expression-oriented language. When the evaluation
+ process encounters a reference to a module, it imports the appropriate
+ expression from there and evaluates it. 
+
+To keep things as simple as possible, we work with a typed variant of
+ the untyped language where all binding positions 
+ come with type declarations. In short, we migrate to
+ an explicitly typed language that is otherwise syntactically and semantically
+ equivalent to the untyped one.  
+
+In a program that mixes typed and untyped modules, evaluation proceeds
+as before. This implies that the values of the typed language are
+those of the untyped language (and vice
+versa). Figures~\ref{fig:syntax-untyped}, 
+\ref{fig:syntax-mixed}, \ref{fig:syntax-runtime}, 
+and~\ref{fig:dls-reduction} present the formal syntax and semantics of our
+model, though this section liberally adds features to provide
+intuition; section~\ref{sec:dls-formal} explains these figures in detail.
+
+\begin{figure}[t]
+$$
+  \begin{altgrammar}
+   P & ::= & \overvec{M}\ \e{} & \mbox{Programs} \\
+   M & ::= & \modu{f}{v} & \mbox{Modules} \\
+   e & ::= & n \alt \dlsabs{\x{}}{\e{}} \alt x \alt f \alt \comb{e}{e} \alt \ifz{e}{e}{e} &
+   \mbox{Source Expressions} \\
+  \end{altgrammar}
+$$
+
+\caption{Scripting Language Syntax} \label{fig:syntax-untyped}
+\end{figure}
+
+\begin{figure}[t]
+$$
+  \begin{altgrammar}
+   P & ::= & \overvec{M}\ \e{} & \mbox{Programs} \\
+   M & ::= & M_u \alt M_t & \mbox{Modules} \\
+   M_u & ::= & \modu{f}{v} & \mbox{Untyped Modules} \\
+%   M_c & ::= & \mc{f}{c}{v} & \mbox{Contracted Modules} \\
+   M_t & ::= & \mt{f}{t}{v_t} & \mbox{Typed Modules} \\
+   t &::= & \dlsint \alt {\dlsproctype  t t} &\mbox{Types}\\
+   v &::=& n \alt \dlsabs{\x{}}{\e{}} &
+   \mbox{Untyped Values} \\
+   v_t &::=& n \alt \Tabs{\x{}}{t}{\e{t}} & \mbox{Typed Values} \\
+   %v_m &::=& n \alt \Tabs{\x{}}{t}{\e{m}} \alt \dlsabs{\x{}}{\e{m}}  & \mbox{Mixed Values} \\
+   e & ::= & v \alt x \alt f \alt \comb{e}{e} \alt \ifz{e}{e}{e} &
+   \mbox{Untyped Expressions} \\
+   \e{t} & ::= & v_t \alt x \alt f \alt \comb{e_t}{e_t} \alt \ifz{e_t}{e_t}{e_t}
+   & \mbox{Typed Expressions} \\ 
+   %\e{m} & ::= & v_m \alt x \alt f \alt \comb{e_m}{e_m} \alt \ifz{e_m}{e_m}{e_m}
+   %& \mbox{Mixed Expressions} \\
+  \end{altgrammar}
+$$
+
+\caption{Migrated Language Syntax} \label{fig:syntax-mixed}
+\end{figure}
+
+
+\begin{figure}[tp]
+$$
+  \begin{altgrammar}
+   c &::= & \dlsint \alt {\proccnt c c} \alt {\barrcnt c c} &
+   \hspace{-0.2in}\mbox{Contracts} \supset \mbox{Types}\\
+   l &::=& \Tabs{\x{}}{t}{\e{}}^f \alt \dlsabs{\x{}}{\e{}}^f \alt
+   \cast{\barrcnt{c}{c}}{f}{v}&
+   \hspace{-0.2in}\mbox{Abstractions} \\
+   v &::=& n^f \alt  l &
+   \hspace{-0.2in}\mbox{Runtime Values}\\
+   e & ::= & v \alt x^f \alt f^f \alt \comb{e}{e}^f \alt \ifz{e}{e}{e}^f  \alt \cast{c}{f}{e} &
+   \hspace{-0.2in}\mbox{Runtime Expressions} \\
+   E & ::= & [] \alt \comb{E}{e} \alt \comb{v}{E} \alt \ifz{E}{e}{e} \alt \cast{c}{f}{E}&
+   \hspace{-0.2in}\mbox{Contexts}\\
+  \end{altgrammar}
+$$
+\caption{Runtime Syntax} \label{fig:syntax-runtime}
+\end{figure}
+
+\newcommand{\dosub}[1]{[v^f/x^g]{#1}}
+
+\begin{figure}
+$$
+\begin{array}{lclr}
+  \redrule{\comb{{\dlsabs{x}{e^f}}^g}{{v}^h}^i}{[v^h/x^g]e^f}{Subst} \\
+  \redrule{\comb{{\Tabs{x}{t}{e^f}}^g}{{v}^h}^i}{[v^h/x^g]e^f}{TypedSubst} \\
+%  \redrule{\comb{\Tabs{x}{t}{e}}{v}}{[v/x]e}{TypedSubst} \\
+  \redrule{{\comb{n^g}{v^h}}^f}{\blame{f}}{App-Error} \\
+  \redrule{\ifz{0^f}{e_1^g}{e_2^h}^i}{e_1^g}{if0-True} \\
+  \redrule{\ifz{v^f}{e_1^g}{e_2^h}^i}{e_2^h}{if0-False} \\
+  \redrule{\cast{\dlsint}{g}{n^f}}{n^f}{Int-Int} \\
+  \redrule{\cast{\dlsint}{g}{l^f}}{\blame{g}}{Int-Lam} \\
+%  \redrule{\cast{\any}{g}{v}}{v}{Any} \\
+  \redrule{\cast{\proccnt{c_1}{c_2}}{g}{n^f}}{\blame g}{Lam-Int} \\
+%  \redrule{\cast{\orcnt{\proccnt{c_1}{c_2}}{c}}{g}{n}}{\cast{c}{g}{n}}{Lam-IntOr} \\
+  \redruletwoline{\cast{\proccnt{c_1}{c_2}}{g}{l^f}}{\cast{\barrcnt{c_1}{c_2}}{g}{l^f}}{Lam-Lam} \\
+% \redrule{\cast{\orcnt{\proccnt{c_1}{c_2}}{c}}{g}{v}}{\cast{\barrcnt{c_1}{c_2}}{g}{v}}{Lam-LamOr} \\
+  \redruletwoline{{\comb{\cast{\barrcnt{c_1}{c_2}}{g}{l^h}}{w^i}}^f}
+                 {\cast{c_2}{g}{{\comb{l^h}{\cast{c_1}{f}{w^i}}}^f}}{Split} \\
+% here begin modules
+  \redruletwoline{\ldots\modu{f}{v^f}\ldots\context{f^g}}{\ldots\modu{f}{v^f}\ldots\context{v^f}}{Lookup} \\
+%  \redruletwoline{\ldots\mc{f}{c}{v}\ldots\context{f}}{\ldots\mc{f}{c}{v}\ldots\context{\cast{c}{f}{v}}}{Lookup-Contract} \\
+  \redruletwoline{\ldots\mt{f}{t}{v^f}\ldots\context{f^g}\mbox{\ where $g \neq f$\hspace*{-0.1in}}}{\ldots\mt{f}{t}{v^f}\ldots\context{\cast{t}{g}{v^f}}}{Lookup-Type} \\
+  \redruletwoline{\ldots\mt{f}{t}{v^f}\ldots\context{f^f}}{\ldots\mt{f}{t}{v^f}\ldots\context{v^f}}{Lookup-Type-Self} \\
+\end{array}
+$$
+$$
+\begin{array}{lcl}
+ \dosub{x^g} & = &v^f\\
+ \dosub{\comb{e_1^{h_1}}{ e_2^{h_2}}}^i & = & ([v^f/x^g]e_1^{h_1} [v^f/x^g]e_2^{h_2})^i\\
+ \dosub{\ifz{e_1^{h_1}}{ e_2^{h_2}}{ e_3^{h_3}}}^i & = & 
+ \ifz{\dosub{e_1^{h_1}}}{\dosub{e_2^{h_2}}}{\dosub{e_3^{h_3}}}^i\\
+ \dosub{\cast{t}{h}{e^{i}}} & = & \cast{t}{h}{\dosub{e^i}}\\
+ \dosub{\dlsabs{y}{e^{h_1}}^{h_2}} & = & {\dlsabs{y}{\dosub{e^{h_1}}}^{h_2}}\\
+ \dosub{\Tabs{y}{t}{e^{h_1}}^{h_2}} & = & {\Tabs{y}{t}{\dosub{e^{h_1}}}^{h_2}}\\
+\end{array}
+$$
+\caption{Reduction Rules} \label{fig:dls-reduction}
+\end{figure}
+
+Given an untyped modular program, the first step of interlanguage
+ migration is to turn one module into a typed module. We assume that this
+ step simply adds types to all binding positions of the module, including
+ the module exports. While porting to Typed Scheme is not always this
+ easy, the additional changes sometimes required do not affect the
+ modeling process.
+% Naturally, we don't believe that this is possible in
+%  reality. Instead, we expect that programmers rewrite their modules in a
+%  meaning-preserving manner---possibly using software analysis tools---so
+%  that they can add type declarations where needed. Still, because the goal
+%  of migration is to change the program without changing its meaning and our
+%  goal is to understand the effect of the overall process, we consider it
+%  justified for a first framework to simplify this step as much as possible.
+
+After the chosen module has been rewritten in the typed version of the
+ language, we need to check the types and infer from them how the typed
+ module is going to interact with the others, which remain untyped.
+ Consider the following simple program: 
+\begin{exmp}
+\begin{schemedisplay}
+(module f (int -> int) (lambda ([x : int]) (g x)))
+(module g 999)
+(f 5)
+\end{schemedisplay}
+\label{ex:dlsone}
+\end{exmp}
+
+It consists of two modules: the first is presumably a module that has
+been rewritten in the typed language, the second one is still in the
+untyped language. Also, the first one exports a function from integers
+to integers; the second one exports a simple integer.
+
+If we were to evaluate this program as is, it would eventually attempt
+to apply \scheme|999| to \scheme|5| via the application $\comb{g}{x}$ in the
+  typed module. In other words, the typed portion of the program would
+  trigger a run-time error, which, assuming proper source tracking,
+  would tell the programmer that the typed module went wrong.  We
+  model this source tracking with labels on each expression in the
+  original program, which indicate the module the expression comes
+  from.  
+
+A different view of the problem is that when one module changes, the
+rest of the program has to play by new rules, too. In this case, the
+very fact that the export from \scheme|g|, the second module, is used as
+a function in the typed module establishes an agreement between the
+two modules. This agreement, however, is informal (and unuttered) and
+is neither checked nor monitored during run-time. The evaluation
+therefore results in a run-time 
+error seemingly due to the typed module.
+
+Thus our first lesson is that informal agreements don't play well with the
+goal of introducing types. To reap the benefits of types, we must not
+only have agreements, we must state them and enforce them. This line
+of reasoning naturally suggests the use of behavioral contracts in the
+spirit of \citet{ff:ho-contracts}. More precisely, we assume that an
+interlanguage migration process may add contracts at any point where
+untyped and typed modules interact.\footnote{In the implementation of
+  Typed Scheme, these contracts are inserted at the point where the
+  untyped module is \emph{required}, as described in
+  chapter~\ref{sect:type-multi}.}
+
+For our running example we would expect that migration changes the program
+ as follows: 
+\begin{exmp}
+\begin{schemedisplay}
+(module f (int -> int)
+  (lambda ([x : int])
+    ({(integer? -> integer?) <=$^{\scheme|g|}$ g} x)))
+(module g 999)
+(f 5)
+\end{schemedisplay}
+\label{ex:dlsone-res}
+\end{exmp}
+Put differently, we can infer from the types of the first module that
+ the second module must provide a function from integers to
+ integers. In our framework, we express this fact with a contract at
+ the module reference.
+
+The example has two implications for interlanguage migration and
+ its formal model. First, the language must also include optional
+ contracts at module boundaries. Second, a type checker for the typed
+ variant of the language must not only enforce the rules of the type
+ system, it must also infer the contracts that these type annotations
+ imply for the remaining modules.
+
+\label{sec:types-as-contracts}
+Unfortunately, there are yet more problems. Consider this second
+program, which applies an $\ii{}$ function to
+ \scheme|#f|, a boolean.
+\begin{exmp}
+\begin{schemedisplay}
+(module h (int -> int) 
+  (lambda ([y : int]) 
+    (let ((g (lambda ([x : int]) (+ x 10))))
+      (+ (g y) (g 10)))))
+(h #f)
+\end{schemedisplay}
+\label{ex:hmod}
+\end{exmp}
+Since our evaluator ignores types, the boolean value
+ flows into the typed module without any objections, only to cause havoc
+ there. Again, the typed module appears to have gone wrong. 
+
+In this case, the solution is to interpret the types on the module exports
+ as contracts so that the evaluator monitors how the other modules use
+ functional exports from the typed module. For flat types such as $\dlsint$,
+ the values that flow into typed functions are checked immediately; for
+ functional values, the contracts are distributed over the domain and range
+ of the function until flat values show up
+ \cite{ff:ho-contracts}. Technically, the types become 
+ contracts on external references to the module \scheme|h|, and are
+ interpreted as runtime checks, or casts, which specify the party to
+ be blamed if they fail.  Considering the main expression from
+ example~\ref{ex:hmod}, with $l$ as the body of module \scheme|h|,
+\begin{schemedisplay}
+  (h #f)$^{Main}$
+\end{schemedisplay}  
+steps to
+\begin{schemedisplay}
+  ({(integer? -> integer?) <=$^{\scheme|h|}$ $l^h$} #f)$^{Main}$
+\end{schemedisplay}   
+which steps to
+\begin{schemedisplay}
+  {integer? <=$^{\scheme|h|}$ ($l^h$ {integer? <=$^{\scheme|Main|}$ #f})}
+\end{schemedisplay}
+ At this point it has become clear that \scheme|#f| is a bad value, and the
+ evaluator can abort the execution blaming the main expression for supplying
+ bad values to the typed module. 
+
+ The rest of the chapter presents a formal model of this migration
+ process. The focus of our presentation concerns the derivation of
+ contracts via type checking; the use of these contracts
+ to protect the typed module; and last but not least a theorem that proves that
+ typed modules can't go wrong in this setting.
+ 
+\end{schemeregion}

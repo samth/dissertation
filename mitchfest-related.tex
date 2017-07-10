@@ -1,0 +1,94 @@
+%Worse, based on Felleisen's experiences, who has supervised/co-supervised
+% four dissertations on soft-typing, 
+
+\section{Related Work}
+
+\subsection{Gradual Typing}
+
+Under the name ``gradual typing'', several other researchers  have
+experimented with the integration of typed and untyped
+code~\cite{st:gradual06, herman, wadler-findler, stop09}.  This work
+has been pursued in two directions.  First, theoretical investigations
+have considered integration of typed and untyped code at 
+ a much finer granularity than we
+present, providing soundness theorems which prove that only the
+untyped portions of the program can go wrong.  This is analogous to our earlier work on Typed
+Scheme~\cite{thf:dls2006}, which provides such a soundness theorem, which we
+believe scales to full Typed Scheme and PLT Scheme.  These gradual
+typing systems have not been scaled to full implementations.
+
+Second, \citet{furr:ruby:sac, furr:ruby:stop} have implemented a
+system for Ruby which is similar to Typed Scheme.  They have also
+designed a type system which matches the idioms of the underlying
+language, and insert dynamic checks at the borders between typed and
+untyped code.  Their work does not yet have a published soundness
+theorem, and requires the use of a new Ruby interpreter, whereas Typed
+Scheme runs purely as a library for PLT Scheme.
+
+\citet{bracha:pluggable} suggests pluggable typing systems, in which a
+programmer can choose from a variety of type systems for each piece of
+code.  Although Typed Scheme requires some annotation, it can be thought of
+as a step toward such a pluggable system, in which programmers can choose
+between the standard PLT Scheme type system and Typed Scheme on a
+module-by-module basis.
+
+\subsection{Type System Features}
+
+Many of the type system features we have incorporated into Typed
+Scheme have been extensively studied.  Polymorphism in type systems
+dates to \citet{reynolds}.  Recursive types are considered by
+\citet{ac:subtyping-recursive-types}, and union
+types by \citet{pierce-union}, among many others. Intensional
+polymorphism appears in calculi by \citet{harper95compiling}, among others. Our use of
+\lexeff{}s and especially \lateff{}s is inspired by prior work on
+effect systems~\cite{fx87}.  Typing variables differently in different
+portions of a program is discussed by \citet{weirich98}.
+However, occurrence typing as presented here has not been
+previously considered.
+
+\subsection{Dependent Types}
+
+Some features similar to those we describe have appeared in the dependent
+type literature. \citet{c:typed-lisp} describes Typed Lisp, which includes
+{\texttt{typecase}} expression that refines the type of a variable in the
+various cases; \citet{weirich98} re-invent this construct in the context of
+a typed lambda calculus with intensional polymorphism.  The
+{\texttt{typecase}} statement specifies the variable to be refined, and
+that variable is typed differently on the right-hand sides of the
+\texttt{typecase} expression.  While this system is superficially similar
+to our type system, the use of latent and visible predicates allows us
+to handle cases other than simple uses of \texttt{typecase}.  This is important
+in type-checking existing Scheme code, which is not written with
+\texttt{typecase} constructs. 
+
+Visible predicates can also be seen as a kind of dependent type, in
+that \scheme|(number? e)| could be thought of as having type \tt when
+\scheme|e| has a value that is a number.  In a system with singleton
+types, this relationship could be expressed as a dependent type.
+This kind of combination typing would not cover the use of \scheme|if| to refine
+the types of variables in the branches, however.  
+
+\subsection{Type Systems for Untyped Languages}
+
+Multiple previous efforts have attempted to typecheck Scheme programs.
+\citet{wand84}, \citet{h:infer}, and \citet{leavens}
+developed typecheckers for an ML-style type system, each of which
+handle polymorphism, structure definition and a number of Scheme
+features.  Wand's macro-based system integrated with untyped Scheme code via
+unchecked assertions.  Haynes' system also handles variable-arity
+functions~\cite{var-ar}.  However, none attempts to accommodate a
+traditional Scheme programming style.
+
+Bracha and Griswold's Strongtalk~\citeyearpar{strongtalk}, like Typed Scheme, presents
+a type system designed for the needs of an untyped language, in their
+case Smalltalk. Reflecting the differing underlying languages, the
+Strongtalk type system differs radically from ours and does not
+describe a mechanism for integrating with untyped code.
+
+\subsection{Refinement Types}
+
+
+
+% Shivers. Soft Typing.  Henglein.  Gradual Typing.  Effect systems
+% (even if they aren't called effects in the calculus).  
+

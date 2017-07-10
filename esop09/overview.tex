@@ -1,0 +1,248 @@
+\begin{schemeregion}
+\section{An Introduction to  Variable-Arity Functions}
+\label{sec:overview-va}
+
+A Scheme programmer defines functions with \scheme{lambda} or
+ \scheme{define}. Both syntactic forms support fixed and variable-arity
+ parameter specifications:
+\begin{enumerate}
+\item \scheme{(lambda (x y) (+ x (* y 3)))} creates a function of two
+arguments and \scheme{(define (f x y) (+ x (* y 3)))}
+creates the same function and names it \scheme{f};
+
+\item the function \scheme{(lambda (x y . z) (+ x (apply max y z)))}
+consumes at least two arguments and otherwise as many as needed; 
+
+\item \scheme{(define (g x y . z) (+ x (apply max y z)))} names this
+function \scheme{g};
+
+\item \scheme{(lambda z (apply + z))} creates a function of arbitrary
+arity; and
+
+\item \scheme{(define (h . z) (apply + z))} is the analogue to this
+\scheme{lambda} expression. 
+\end{enumerate}
+ The parameter \scheme{z} in the last four cases is called the \emph{rest
+ parameter}. 
+
+The application of a variable-arity function combines any arguments in
+ excess of the number of required parameters into a list.  Thus, \scheme{(g
+ 1 2 3 4)} binds \scheme{x} to \scheme{1} and \scheme{y} to \scheme{2},
+ while \scheme{z} becomes \scheme{(list 3 4)} for the evaluation of
+ \scheme{g}'s function body. In contrast, \scheme{(h 1 2 3 4)} sets
+ \scheme{z} to \scheme{(list 1 2 3 4)}.
+
+The \scheme|apply| function, used in the examples above, takes a
+function \scheme|f|, a sequence of fixed arguments $v_1 \ldots v_n$,
+and a list of additional arguments $r$.  If the list $r$ is the value
+\scheme|(list w$_1$ $\ldots$ w$_n$)|, then \scheme|(apply f v$_1$
+$\ldots$ v$_n$ r)| is the same as \scheme|(f v$_1$ $\ldots$ v$_n$ w$_1$
+$\ldots$ w$_n$)|.  The \scheme|apply| function plays a critical role in
+conjunction with rest arguments.
+
+
+This section sketches how the revised version of Typed Scheme accommodates
+ variable-arity functions. Our revision focuses on the uses of
+ such functions that accept arbitrarily many arguments. Scheme
+ programmers sometimes use variable-arity functions to simulate
+ optional or keyword arguments. In PLT Scheme, such programs typically employ
+ \scheme{case-lambda}~\cite{dybvig-case-lambda} or equivalent \scheme{define}
+ forms instead. 
+
+
+\subsection{Uniform Variable-Arity Functions}
+\label{ssec:uni-va}
+
+\emph{Uniform} variable-arity functions are those that expect their rest parameter to be a
+ homogeneous list.  Consider the following three examples of type signatures:
+\begin{schemedisplay}
+(: + (Integer$^*$ -> Integer))
+(: string-append (String$^*$ -> String))
+(: list (All (alpha) (alpha$^*$ -> (Listof alpha))))
+\end{schemedisplay}
+ The syntax \scheme{Type$^*$} for the type of rest parameters alludes to
+ the Kleene star for regular expressions.  It signals that in addition to
+ the other arguments, the function takes an arbitrary number of arguments
+ of the given base type.  The form \scheme|Type$^*$| is dubbed a {\em
+ starred pre-type}, because it is not a full-fledged type and may appear
+ only as the last element of a function's domain.
+
+Here is a definition of variable-arity \scheme|+| in
+Scheme:
+%
+\schemeinput{esop09/examples/plus.ss}
+
+\noindent Typing this definition is straightforward. The
+ type assigned to the rest parameter of starred pre-type \scheme|tau$^*$|
+ in the body of the function is \scheme|(Listof tau)|, a
+ pre-existing type in Typed Scheme.
+
+\subsection{Beyond Uniform Variable-Arity Functions}
+\label{ssec:beyond-uva}
+
+Not all variable-arity functions assume that their rest parameter is a
+homogeneous list of values.  We can allow heterogeneous rest
+parameters by finding other constraints.  For example, the length of
+the list assigned to the rest parameter may be connected to the types of
+other parameters or the returned value.
+
+For example, Scheme's \scheme|map| function
+is not restricted to mapping unary functions over single lists,
+ unlike its counter-parts in ML or Haskell. When
+\scheme{map} receives a function \scheme{f} and $n$ lists, it expects
+\scheme{f} to accept $n$ arguments.  Also, the type of the $k$th function
+parameter must match the element type of the $k$th list.
+
+ Scheme's \scheme|apply| function provides its own
+challenges.  It is straightforward to type the use of \scheme|apply|
+with a uniform variable-arity function, as in the hypothetical
+definition of \scheme|+| from section~\ref{ssec:uni-va}.  If the type
+of \scheme|f| involves the starred pre-type \scheme|tau$^*$|, then the
+list $r$ must have type \scheme|(Listof tau)|.
+
+However, take the following example taken from the PLT Scheme code base:
+\begin{schemedisplay}
+;; implements a wrapper that prints \scheme{f}'s arguments
+(define (verbose f)
+  (if quiet? f (lambda a (printf "xform-cpp: ~a\n" a) (apply f a))))
+\end{schemedisplay}
+The intent of the programmer is clear---the result of applying
+\scheme|verbose| to a function \scheme|f| should have the same type as
+\scheme|f| for {\em any} function type.  With uniform
+variable-arity functions, we can type the internal \scheme|lambda|'s
+argument \scheme|a| only as a homogeneous list of arbitrary length.
+Thus, if \scheme|f| has some fixed arity $n$, then there is no way to
+statically guarantee that the list of arguments $a$ has $n$ elements,
+and thus applying the function \scheme|f| to the list \scheme|a| via
+\scheme|apply| may go wrong.  Our type system should protect the
+programmer from arity mismatches, whether through function application
+or uses of \scheme|apply|, while allowing functions like \scheme|verbose|.
+
+\subsection{Non-Uniform Variable-Arity Functions}
+
+As of the latest release, Typed Scheme can represent the types of \emph{non-uniform} variable-arity
+functions.  Below are the types for some example functions:
+\begin{schemedisplay}
+;; \scheme{map} is the standard Scheme map
+(: map 
+   (All (gamma alpha beta ...) 
+     ((alpha beta dotsb -> gamma) (Listof alpha) (Listof beta) dotsb -> (Listof gamma))))
+
+;; \scheme{map-with-funcs} takes any number of functions, 
+;; and then an appropriate set of arguments, and then produces 
+;; the results of applying all the functions to the arguments
+(: map-with-funcs
+   (All (beta alpha ...) ((alpha dotsa -> beta)$^*$ -> (alpha dotsa -> (Listof beta)))))
+\end{schemedisplay}
+Our first key innovation is the possibility to attach \scheme|...| to the last
+type variable in the binding position of a \scheme|All| type constructor.
+Such type variables are dubbed {\em dotted type variables}.  Dotted type
+variables signal that this polymorphic type can be instantiated with an arbitrary
+number of types.
+
+Next, the body of \scheme|All| types with dotted type variables may contain
+ expressions of the form \scheme|tau dotsa| for some type \scheme|tau| and
+ a dotted type variable \scheme|alpha|.  These are {\em dotted pre-types};
+ they classify non-uniform rest parameters just like starred pre-types classify
+ uniform rest parameters.  A dotted pre-type has two parts: the base $\tau$
+ and the bound $\alpha$.  Only dotted type variables can be used as the
+ bound of a dotted pre-type. Since \scheme|All|-types are
+ nestable and thus multiple dotted type variables may be in scope,
+ dotted pre-types must specify the bound.
+
+When a dotted polymorphic type is instantiated, any dotted pre-types
+are expanded by copying the base an appropriate number of
+times and by replacing free instances of the bound in each copy
+with the corresponding type argument.  For example, instantiating
+\scheme|map-with-funcs| as follows:
+%% \scheme|Number Integer Boolean String|
+\begin{schemedisplay}
+(inst map-with-funcs Number Integer Boolean String)
+\end{schemedisplay}
+ results in a value with the type:
+\begin{schemedisplay}
+((Integer Boolean String -> Number)$^*$ ->
+(Integer Boolean String -> (Listof Number)))
+\end{schemedisplay}
+
+Typed Scheme also provides local inference of the appropriate type
+arguments for dotted polymorphic functions, so explicit type
+instantiation is rarely needed~\cite{dots-tr}. Thus, the following uses
+of \scheme|map| are successfully inferred at the appropriate types:
+\begin{schemedisplay}
+(map not (list #t #f #t))
+;; \scheme{map} is instantiated (via local type inference) at:
+;; \scheme|((Boolean -> Boolean) (Listof Boolean) -> (Listof Boolean))|
+ 
+(map make-book (list "Flatland") (list "A. Square") (list 1884))
+;; \scheme|((String String Integer -> book)|
+;; $\ $\scheme|(Listof String) (Listof String) (Listof Integer) -> (Listof book))|
+\end{schemedisplay}
+
+Typed Scheme can also type-check the definitions of non-uniform
+variable-arity functions: 
+\schemeinput{esop09/examples/fold-left.ss}
+The example introduces a definition of
+ \scheme|fold-left|. Its type shows that it accepts at least three arguments: a
+ function \scheme{f}; an initial element \scheme{c};
+ and at least one list \scheme{as}. Optionally,
+ \scheme{fold-left} consumes another sequence \scheme{bss} of lists. For
+ this combination to work out, \scheme{f} must consume as many arguments as
+ there are lists plus one; in addition, the types of these lists must match
+ the types of \scheme{f}'s parameters because each list item 
+ becomes an argument. 
+
+Beyond this, the example illustrates that the rest parameter is treated as
+ if it were a place-holder for a plain list parameter. In this particular
+ case, \scheme{bss} is thrice subjected to \scheme{map}-style processing.
+ In general, variable-arity functions should be free to process their rest
+ parameters with existing list-processing functions. 
+
+The challenge is to assign types to such expressions. On the one hand,
+ list-processing functions expect lists, but the rest parameter has a
+ dotted pre-type. On the other hand, the result of list-processing a rest
+ parameter may flow again into a rest-argument position. While the first
+ obstacle is simple to overcome with a conversion from dotted
+ pre-types to list types, the second one is onerous. Since
+ list-processing functions do not return dotted pre-types but list types,
+ we cannot possibly expect that such list types come with enough
+ information for an automatic conversion. 
+
+Thus we use special type rules for the list
+processing of rest parameters with \scheme|map|, \scheme|andmap|, and
+\scheme|ormap|.  Consider \scheme{map}, which returns a list of the
+ same length as the given one and whose component types are in a predictable
+ order.  If \scheme|xs| is classified by the dotted pre-type
+ \scheme|tau dotsa|, and \scheme|f| has type \scheme|(tau -> sigma)|, we classify
+ \scheme|(map f xs)| with the dotted pre-type \scheme|sigma dotsa|.
+ Thus, in the definition of \scheme{fold-left} \scheme|(map car bss)|
+ is classified as the dotted pre-type \scheme|beta dotsb| because
+ \scheme{car} is instantiated at \scheme|((Listof beta) -> beta)| and
+ \scheme|bss| is classified as the dotted pre-type \scheme|(Listof beta)
+ dotsb|.
+
+One way to use such processed rest parameters is in conjunction with
+ \scheme{apply}. Specifically, if \scheme{apply} is passed a variable-arity
+ function \scheme{f}, then its final argument \scheme{l}, which must be a
+ list, must match up with the rest parameter of \scheme{f}.  If the
+ function is a uniform variable-arity procedure and the final argument is a
+ list, typing the use of \scheme|apply| is straightforward. If it is a
+ {\em non-uniform} variable-arity function, the number and types of parameters
+ must match the elements and types of \scheme{l}.
+
+Here is an illustrative example from the definition of \scheme|fold-left|:
+\begin{schemedisplay}
+(apply f c (car as) (map car bss))
+\end{schemedisplay}
+ By the type of
+ \scheme{fold-left}, \scheme|f| has type \scheme|(gamma alpha beta dotsb ->
+ gamma)|.  The types of \scheme|c| and \scheme|(car as)| match the types of
+ the initial parameters to \scheme|f|.  Since the \scheme{map} application
+ has dotted pre-type \scheme{(Listof beta) dotsb} and since the rest parameter
+ position of \scheme|f| is bounded by \scheme|beta|, we are guaranteed that
+ the length of the list produced by \scheme|(map car bss)| matches \scheme|f|'s
+ expectations about its rest argument.  In short, we use
+ the type system to show that we cannot have an arity mismatch,
+ even in the case of \scheme|apply|.
+
+\end{schemeregion}

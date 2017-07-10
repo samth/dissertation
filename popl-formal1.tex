@@ -1,0 +1,333 @@
+\def\cf{\ma{\metafont{combfilter}}}
+\def\appf{\ma{\metafont{applyfilter}}}
+\def\absf{\ma{\metafont{abstractfilter}}}
+
+\input{figures}
+\input{envop}
+
+\begin{schemeregion}
+
+\emph{Occurrence typing}, originally developed by
+\citet{krcf:occurrence}, is the idea of assigning differing types to
+different occurrences of variables based on the control flow of the
+program.  In Typed Scheme, we use applications of type predicates such
+\scheme|number?| to determine the types of variables, as shown in
+chapter~\ref{chap:overview}. This chapter and the next formalize the
+ideas of occurrence typing, as well as extensions to paths
+(section~\ref{sec:paths}) and complex logical propositions
+(section~\ref{sec:logic}), in the calculus \lts.  The statement of
+type soundness and the necessary lemmas, along with proof sketches,
+are given in section~\ref{sec:soundness}.
+
+We begin our presentation of \lts with the base system.  The
+fundamental judgement of the type system is:
+
+\vspace{-4mm}
+\large
+\[
+  \hastyeffphi{\e{}}{\t{}}{\phii{}}{\s{}}
+\]
+\normalsize
+\noindent
+It states that in type environment $\Gamma$, the expression \e{}
+has type \t{}, following standard practice.  Additionally, the
+judgement describes the filters \phii{} of \e{}, i.e., the
+ propositions known to be true depending on whether \e{}
+evaluates to true or false.  Finally, the object \s{} describes the
+portion of the environment for which~\e{} in an accessor.
+
+\section{Syntax and Operational Semantics}
+
+\input{main-fig}
+
+The syntax and semantics of \lts are standard, except for the
+types; see figure~\ref{fig:syntax} and figure~\ref{fig:opsem}. 
+Terms are either boolean constants, numbers, function
+constants, variables, $\lambda$-abstractions or \scheme|if|
+expressions.  All of these have the usual operational semantics, which
+we therefore omit.  One distinctive feature of the
+operational semantics is that values other than $\ff$ are treated
+as true.
+
+The distinctive features of \lts are found in the types.  A type is
+either the top type $\top$, the number type \num, a type representing
+either of the two constant booleans, a function type, or a (true) union 
+type.
+
+There are two distinctive aspects of these types.  First,
+separating the booleans into particular types for true ($\ttt$) and
+false ($\fft$) is necessary since many common Scheme idioms
+ treat $\ff$ specially. The
+more typical boolean type is $(\usym \ttt\ \fft)$, which is
+abbreviated \bool. Second, function types come
+with two annotations: a {\it latent filter set} \phih{} and a {\it latent
+  object} \sh{}.
+
+\subsection{Filters, Latent Filters, and Filter Sets}
+
+Filters \p{} are  propositions
+about types of variables.  The filters proved by a particular expression
+form part of the type judgement for that expression.  A filter of the
+form \t{\x{}} states that \x{} has type \t{}.  The filter
+$\comp{\t{}}_{\x{}}$ states that \x{} does not have type \t{}.  The
+filter $\bot$ represents impossibility.
+%
+Latent filters \ph{} take on analogous forms, but without attached
+variables, and can be thought of as uninstantiated propositions.
+
+A filter set \phii{} is a pair of sequences of filters, which is
+written as $\op{+}|\op{-}$.  The first component, \op{+}, collects the
+propositions that are true if the expression 
+evaluates to a true value.
+  The second, \op{-}, collects the propositions that are
+true when the expression evaluates to false. Latent filter
+sets \phih{} are the analogous, a pair of sequences of latent filters.
+  Empty sequences are written $\empt$.  When $\bot$
+(or the latent form $\both$)
+is an element of a sequence of filters, we omit the other
+elements, since they are irrelevant.
+
+Consider the expression \scheme|(number? x)|, a prototypical example
+of the use of predicates. It has the filter set
+$\num_{\x{}}|\comp{\num}_{\x{}}$, which states that if it evaluates
+to \scheme|#t|, then \x{} is a number, otherwise \x{} is not a
+number.  The function \numberp has the
+ latent filter $\num|\comp{\num}$ which
+states that when applied to a value, if the result is true the
+value is a number, and if the result is false, the value is
+not a number.
+
+\subsection{Objects and Latent Objects}
+
+The second piece of additional information computed by the type system
+is the \emph{object}.  It indicates for which part of the dynamic environment the
+expression is an accessor.  In our base calculus,
+ the only such expressions we consider are variable
+references, which are given the variable itself as the object.  
+Thus, the expression \x{} has object \x{}.  
+The object $\noeffect$ indicates that no information is available
+about what is accessed.\footnote{Objects are made richer in
+  chapter~\ref{chap:occur-extend}.}  
+
+Abstracting from an object results in a \emph{latent object}, which
+represents the piece of the environment accessed when a function is
+applied.  The latent object $\bullet$ indicates that whatever the
+object of the argument to the function is, it is also the object of the
+result. 
+ The function $\abs{\x{}}{\t{}}{\x{}}$
+has the latent object $\bullet$.
+ The latent object $\noeffect$ indicates the absence of information
+concerning the result.
+The constant function $\abs{\x{}}{\t{}}{1}$
+has latent object $\noeffect$, as does the function \numberp, whose
+full type is
+ $$\predty{\bullet}{\num}$$
+
+
+
+
+\section{Typing Rules}
+
+The typing rules for the base system of \lts are given in
+figure~\ref{fig:core} (the $\cf$ metafunction is defined in
+section~\ref{sec:cf}).
+  The simplest rule is {\sc T-Num}, which gives
+all numbers the type \num.  Since numbers are treated as true by the
+evaluation rules for \scheme|if|, numbers have the filter set
+$\empt|\bot$, indicating that no new information is acquired when the
+number evaluates to a true value, and that if it evaluates to a false
+value, a contradiction is obtained.  The rule for function constants,
+{\sc T-Const}, is similar, but their types are given by the $\delta_{\t{}}$
+meta-function, whose definition is given in figure~\ref{fig:dt}.  The
+boolean constants are given singleton types in {\sc T-True} and {\sc
+T-False}, along with filter sets that reflect that \scheme|#t| is
+always true, and \scheme|#f| is always false.
+
+The rule for typing variables involves additional aspects of the system.
+The type of a variable is  looked up in the type
+environment.  The object for a variable is itself.  Finally, the
+filter for a variable indicates that if \x{} evaluates to a true value,
+then \x{} cannot have type \fft.  Similarly, if \x{} evaluates
+to \scheme|#f|, its type should also be \fft.
+
+Typechecking an abstraction is straightforward.  The body is
+typechecked in an appropriately-extended environment, producing a
+type, filter set, and object.  The type is the result type of the
+function, the filter set is abstracted into a latent filter set with
+the \absf metafunction, defined in
+figure~\ref{fig:meta}, and the object is abstracted if it is the
+formal parameter of the abstraction.  The filter set and object of the
+overall expression 
+ is as for any other true value.
+
+In the application rule, {\sc T-App}, all of the elements of the type
+system are combined.  In addition to the standard checking of the
+types of the formal and actual argument, information is propagated
+from the operator's latent filter set and object and combined with the
+object of the 
+operand.  The \appf metafunction is (roughly) the
+inverse operation of \absf, and explained further in
+section~\ref{sec:cf}. 
+Similarly,
+the latent object of the operator is combined with the object of the
+operand.  
+
+Finally, in the {\sc T-If} rule, the filter set of the test
+ is divided into its two components, and
+the first is used for the \tbranch, the second for the 
+\ebranch.  The operation $\Gamma + \op{}$, which combines a type
+environment with filters to produce a new, refined type environment,
+ is defined in
+figure~\ref{fig:envop}.  This makes use of the metafunctions 
+$\metafont{restrict}(\t{},\sig{})$ and $\metafont{remove}(\t{},\sig{})$,
+ which intuitively compute  $\t{} \cap \sig{}$ and $\t{} - \sig{}$,
+ respectively.  
+%
+The filter set for the entire expression is
+computed from the filter sets of the three components by the
+\cf metafunction, which is the subject of 
+section~\ref{sec:cf}. 
+
+\paragraph{Subtyping}
+The subtyping relation on types is given in figure~\ref{fig:sub}.
+Most of the rules are straightforward.  All types are subtypes of
+$\top$, and function subtyping proceeds as usual, although
+strengthening of the filter sets is permitted.  The rules for unions
+are simple, and demonstrate that the union of no types, \scheme|(U)|,
+ is below all other
+types.  
+
+\section{A Small Example}
+
+Returning to example 1, we consider how the type system proves it
+type safe. The example is \scheme|(if (number? x) (add1 x) 0)|, and
+the  challenge is that the second occurrence of \x{} must be
+given type \num. We assume that the type environment is $\Gamma =
+\x{} : \top$. First, we consider the typing of the
+application \scheme|(number? x)|.  The type of \x{} is $\top$, and its
+object is just \x{}.  Second, the latent filter set of the
+operand \scheme|number?| is $\num|\comp{\num}$, and the filter set of
+the application is thus
+$$\applyfilter{\num|\comp{\num}}{\top}{\x{}}
+= \num_{\x{}}|\comp{\num}_{\x{}}$$
+
+To typecheck the whole \scheme|if| expression, we take the relevant
+filter set and add the first part to the type environment for the
+\tbranch, giving $\x{} : \top + \num_{\x{}} = \x{} : \num$.  This
+operation makes use of the $\metafont{update}$ and $\metafont{restrict}$
+metafunctions, defined in figures~\ref{fig:envop} and \ref{fig:rro}. This
+is sufficient to make \scheme|(add1 x)| typecheck correctly, and of
+course the else expression  typechecks under any
+environment.  Therefore, the whole expression has type \num, as
+desired, with filter set $\empt|\empt$ and object $\noeffect$.  
+
+
+
+\section{Manipulating Filters}
+\label{sec:cf}
+
+The metafunctions \appf, \absf, and \cf play a central role in the
+functioning of the type system, and their definitions determine its
+expressiveness.  The definitions of these metafunctions (and the
+others defined in this chapter) are given in a ordered fashion,
+i.e., each clause in their definitions (for example, in
+figure~\ref{fig:meta})
+is considered only if the preceding clauses do not apply.
+
+
+\begin{itemize}
+\item 
+\absf, the simplest, maps a variable \scheme|x| and a filter set to
+ a latent filter set.  In the case of a filter referring to
+ \scheme|x|, it removes the variable, producing a latent filter. When it
+encounters a filter that refers to a variable distinct from \scheme|x|,
+that filter is discarded.  
+
+\item
+\appf is an inverse to \absf.  Given a latent filter set (from a
+function operator) and a type and an object, it combines
+them to produce a filter set.  In most cases, this simply replaces the
+variable removed by \absf with the new variable.
+  In cases where the combination of
+the type and latent filter are impossible, $\bot$ is produced.  For
+example, the expression \scheme|(number? 3)| has filter set
+$\empt|\bot$ because $\applyfilter{\num|\comp{\num}}{\num}{\noeffect}$
+ produces $\bot$ (since $\subtype{\num}{\num}$). Note that the
+ $\nooverlap{\t{}}{\sig{}}$ metafunction determines if there are any values
+ that have both type \t{} \emph{and} \sig{}.
+
+
+\item
+\cf allows for reasoning about the behavior of complex
+\scheme|if| expressions.  The simplest definition for it is
+$$%
+\begin{array}{l@{\ =\ }l}
+\combfilter{\phii1}{\phii2}{\phii3} & \empt|\empt  
+\end{array}
+$$
+
+
+With this definition, nothing is known about the result of evaluating
+a conditional expression.  However, more sophisticated definitions can
+significantly increase the expressiveness of the system.  For example,
+\scheme|(if #f $e_2$ $e_3$)| is equivalent to \scheme|$e_3$|.  
+The following rules capture this intuition:
+$$%
+\begin{array}{l@{\ =\ }l}
+\combfilter{\empt|\bot}{\phii2}{\phii3} & \phii2 \\
+\combfilter{\bot|\empt}{\phii2}{\phii3} & \phii3  
+\end{array}
+$$
+
+Since the compilation of many conditional and boolean operations in
+ Scheme generate instances of \scheme|if|, \cf benefits from additional extensions.  For
+example, \scheme|(and $e_1$ $e_2$)| expands to \scheme|(if $e_1$
+$e_2$ #f)|.  As seen previously, if an \scheme|and| expression
+produces a true value, then the filter sets of both subexpressions
+should be combined, but if \scheme|#f| is produced, then nothing is
+learned.  This is captured as follows:
+$$%
+\begin{array}{l@{\ =\ }l}
+\combfilter{\op{1_+}|\op{1_-}} {\op{2_+}|\op{2_-}} {\bot|\empt} & 
+\op{1_+},\op{2_+}|\logic{\imp{\op{1_+}}{\op{2_-}},\imp{\op{2_+}}{\op{1_-}}}{\empt}\\
+\end{array}
+$$%
+
+As seen in example~\ref{ex:or}, uses of \scheme|or| can be combined
+into filters that describe union types.  Here is an appropriate rule:
+
+\newcommand{\ts}{\uniontwo{\t{}}{\sig{}}}
+
+
+$$%
+\begin{array}{l@{\ =\ }l}
+{\combfilter 
+{\t{\wpi{\x{}}}|\comp{\t{}}_{\wpi{\x{}}}}
+{\empt|\bot}
+{{\sig{\wpi{\x{}}}|\comp{\sig{}}_{\wpi{\x{}}}}} 
+}
+& \ts_{\wpi{\x{}}}|{\comp{\ts}}_{\wpi{\x{}}}  \\
+\end{array}
+$$
+
+Additional rules are possible to handle \scheme|or| in greater
+generality, as well as other patterns of \scheme|if| usage.
+\end{itemize}
+
+
+
+\small
+\begin{figure}
+\constantTyping
+\caption{Constant Typing}
+\label{fig:dt}
+\end{figure}
+\normalsize
+
+\begin{figure}
+\RestrictRemoveOverlap
+\caption{Type Operations}
+\label{fig:rro}
+\end{figure}
+
+\end{schemeregion}

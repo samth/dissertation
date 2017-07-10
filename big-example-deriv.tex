@@ -1,0 +1,108 @@
+\begin{schemeregion}
+
+\begin{figure}
+\schemeinput{expanded-cond.ss}
+\caption{Expansion of Example~\ref{ex:full}}
+\label{fig:ex:full-expanded}
+\end{figure}
+
+
+
+\begin{figure}[t!]
+\mbox{\empt$;$\gzeroname}\ $\vdash$ \mbox{\scheme|(if (if (number?
+  input) ...) ...)|} $: \num$ \nothing
+\begin{list}{$\bullet$}{\leftmargin=2em}
+%\setlength{\listparindent}{0pt}
+%\addtolength{\itemsep}{-0.5\baselineskip}
+\renewcommand{\labelitemi}{$\bullet$}
+\renewcommand{\labelitemii}{$\bullet$}
+\renewcommand{\labelitemiii}{}
+\renewcommand{\labelitemiv}{$\bullet$}
+
+\item \mbox{\empt$;$\gzeroname}\ $\vdash$ \mbox{\scheme|(if (number? input) ...)|} 
+$ : \bool\ 
+;\ 
+$\donename$ | $\dtwoname$
+\ ;\  \noeffect$ 
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \mbox{\empt$;$\gzeroname}\ $\vdash$ 
+\mbox{\scheme|(number? input)|} $: \bool \ ;$
+\mbox{$\num_{\scheme|input|}|\comp{\num}_{\scheme|input|}$} $;
+\noeffect$
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dots
+\end{list}
+{\raggedright
+\item \dthree$;$\gzeroname $\vdash$ \scheme|(number? (car extra))| $: \bool ;$$\Delta_3|\Delta_4 ; \noeffect$
+}
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dots
+\end{list}
+
+\item \dfour$;$\gzeroname $\vdash$ \scheme|#f| $: \fft ; \bot|\empt ; \noeffect$
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dots
+\end{list}
+
+\end{list}
+\item \donename$;$\gone\ $\vdash$ \scheme|(+ input (car extra))| $ : $
+  \scheme|N| \nothing
+
+  \begin{list}{$\bullet$}{\leftmargin=1em}
+\renewcommand{\labelitemii}{}
+  \item \dots
+  \end{list}
+\item 
+\mbox{\dtwoname}$;$ \mbox{\gzeroname}\ $\vdash$ 
+\mbox{\scheme|(if  (number? (car extra)) ...)|} $ : $ \scheme|N|
+\nothing 
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dtwoname$;$\gzeroname $\vdash$ \scheme|(number? (car extra))|
+$: \bool ;$
+$\Delta_3|\Delta_4 ; \noeffect$
+
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dots
+\end{list}
+
+\item \dtwoname$,\Delta_3,\comp{\num}_{\scheme|input|};\Gamma_2\vdash$
+ \scheme|(+ (string->number input) (car  extra))| $ : \num ;
+ \empt|\empt ; \noeffect$
+
+\begin{list}{$\bullet$}{\leftmargin=1em}
+\item \dots
+\end{list}
+
+\item \dtwoname$,\Delta_4;\Gamma_0\vdash$ \scheme|0| $ : \num ;
+ \empt|\bot ; \noeffect$
+\end{list}
+
+
+
+
+\vspace{2mm}
+where
+\vspace{2mm}
+
+
+\begin{tabular}{l@{\quad=\quad}l}
+\gzeroname & \gzero \\
+%\gonename & \gone \\
+\gtwoname &  \gtwo \vspace{5mm} \\
+%\dzeroname & \empt \\
+\donename & \done \\
+\dtwoname & $\num_{\pecar(\scheme|extra|)} \supset
+  {\comp{\num}_{\scheme|input|}}$, \\ 
+\multicolumn{2}{r}{${\comp{\num}_{\scheme|input|}} \supset \num_{\pecar(\scheme|extra|)}$}  \\
+$\Delta_3$ & $\num_{\pecar(\scheme|extra|)}$ \\
+$\Delta_4$ & $\comp{\num}_{\pecar(\scheme|extra|)}$ \\
+%$\Delta_5$ & \dtwoname$,\num_{\pecar(\scheme|extra|)},\comp{\num}_{\scheme|input|}$\\
+%$\Delta_6$ & \dtwoname$,\comp{\num}_{\pecar(\scheme|extra|)}$ \\
+\end{tabular}
+
+\end{list}
+\caption{Abbreviated Type Derivation for Expanded Example~\ref{ex:full}}
+\label{fig:type-deriv}
+\end{figure}
+
+\end{schemeregion}

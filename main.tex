@@ -1,0 +1,284 @@
+% Keep this before the document class to calculate stuff correctly
+%\RequirePackage{mathpazo}\normalfont % \mathit{\kappa} doesn't work
+\RequirePackage{charter}\normalfont
+
+% draft: Short title page, exact date-time of build, extra
+%        footer with date
+% final: official title page and footers
+%
+%\documentclass[12pt,draft,oldfontcommands]{memoir}
+\documentclass[12pt,final,oldfontcommands]{memoir}
+
+% Customization of memoir class to comply with dissertation guidelines
+\RequirePackage{timestamp}
+
+
+\RequirePackage[usenames,dvipsnames]{color}
+\RequirePackage{dissertationfmt}
+\RequirePackage[longnamesfirst]{natbib}
+\RequirePackage{slatex}
+\slatexseparateincludes
+\RequirePackage{mathpartir}
+\RequirePackage{dls-mmm}
+\usepackage{ifthen}
+%\usepackage[stable]{footmisc}
+\RequirePackage{fancyvrb}
+\RequirePackage{dls-macros}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{ts}
+\ifdraftdoc
+\usepackage[pdftex,colorlinks=true,draft=false,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
+\else
+\usepackage[pdftex,colorlinks=true,draft=false,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
+\fi
+\usepackage[all]{hypcap}
+\RequirePackage{memhfixc}
+
+%\hyphenate{wrig-stad}
+
+\newcommand{\cpp}{C++}
+\newcommand{\csharp}{C\#}
+
+\bibpunct{[}{]}{;}{a}{}{,}
+
+\leftcodeskip=5pt  %0pt plus 1fil
+\rightcodeskip=1pt %% guarantees that no code blocks are broken across a
+		   %% page -- need to do some shuffling for calculations 
+
+\defschememathescape{$} %$
+
+\setspecialsymbol{HPmodule-begin}{\keywordfont{\#\%module-begin}}
+\setspecialsymbol{HPtop-interaction}{\keywordfont{\#\%top-interaction}}
+\setspecialsymbol{HPapp}{\keywordfont{\#\%app}}
+\setspecialsymbol{HPdatum}{\keywordfont{\#\%datum}}
+
+\setkeyword{module-begin top-interaction}
+\setkeyword{define/contract contract all-defined-out for}
+\setspecialsymbol{typeKW}{\keywordfont{type}}
+\setspecialsymbol{<=}{$\Leftarrow$}
+
+\setkeyword{require/typed pdefine: Listof require-typed-struct lib 
+  int
+  planet Symbol Opaque require/opaque-type define-values values
+  All cases define-type Any Pair let-values let*
+  Char N B A S Path
+  -> Number String Boolean : define: define-type-alias define-struct
+  define-typed-struct module with-syntax syntax-case
+  define-struct: let*: Refinement R provide for-syntax require 
+  rename-out except-out all-from-out define-for-syntax
+  begin-for-syntax match rename-in compiled-module define/contract
+  #%app #%module-begin #%top-interaction class unit
+  Integer inst}
+\setspecialsymbol{lambda}{\ma{\lambda}}
+\setspecialsymbol{lambda:}{\ma{\lambda}:}
+\setspecialsymbol{l:}{\ma{\lambda}:}
+\setspecialsymbol{hlang}{{\bf \#lang}}
+\setspecialsymbol{langts}{{{\bf \#lang} typed-scheme}} 
+\setspecialsymbol{langs}{{\bf \#lang} scheme} 
+\setspecialsymbol{mu}{$\mu$} 
+\setspecialsymbol{string->number}{\mbox{\variablefont{string}$\rightarrow$\variablefont{number}}}
+\setspecialsymbol{->}{$\rightarrow$}
+\setspecialsymbol{U}{\ma{\bigcup}}
+\setspecialsymbol{-U>}{\ma{\stackrel{\mbox{(\usym\ {\bf Number} {\bf Boolean})}}{\to}}}
+\setspecialsymbol{bover}{\ma{\stackrel{b}{\to}}}
+\setspecialsymbol{bot}{\ma{\bot}}
+\setspecialsymbol{ELIDED}{\mbox{$\mbox{\tiny ~~{\it omitted\/}~~} \over ~$}}
+\setspecialsymbol{dotsa}{$\dots_{\alpha}$}
+\setspecialsymbol{dotsb}{$\dots_{\beta}$}
+\setspecialsymbol{dotsc}{$\dots_{\gamma}$}
+\setspecialsymbol{alpha}{$\alpha$}
+\setspecialsymbol{beta}{$\beta$}
+\setspecialsymbol{gamma}{$\gamma$}
+\setspecialsymbol{sigma}{$\sigma$}
+\setspecialsymbol{tau}{$\tau$}
+\setspecialsymbol{All}{$\forall$}
+\setvariable{rec}
+
+\def\multiargs{false}
+\def\paths{false}
+\def\dologic{false}
+
+\ifthenelse{\equal{\multiargs}{true}}{
+\margtrue
+}
+{
+\margfalse
+}
+
+\ifthenelse{\equal{\paths}{true}}{
+\pathtrue
+}
+{
+\pathfalse
+}
+
+\ifthenelse{\equal{\dologic}{true}}{
+\logictrue
+}
+{
+\logicfalse
+}
+
+
+
+
+% Enable svn keyword expansion
+%\RequirePackage{svn-multi}
+
+%%% Technical stuff
+
+%\RequirePackage{amsthm} % for the proof environment
+
+%%% Typography customizations
+%\RequirePackage{afterpage} % for the \afterpage command
+
+\setcounter{tocdepth}{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\mdef\l{\lambda}
+
+
+\title{Typed Scheme: \\ {\large \textrm{From Scripts to Programs}}} 
+\author{Sam Tobin-Hochstadt}
+
+\makeindex
+
+%\doublespacing
+
+\begin{document}
+
+
+%%% Front stuff
+\frontmatter
+
+% Cover page
+\makeccsthesistitle
+
+% Preface (abstract, acknowledgements)
+\input{preface.tex}
+
+% ToC, LoF, LoT, etc.
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+%\listoftables
+
+\newcounter{ex}
+
+
+\newsavebox{\boxedtextbin}
+\newenvironment{boxedtext}
+{\begin{lrbox}{\boxedtextbin}
+      \begin{minipage}{0.95 \textwidth}    }
+{\end{minipage}\end{lrbox}
+\begin{center}\fbox{\usebox{\boxedtextbin}}\end{center}}
+
+\newbox\exbox
+
+\newenvironment{exmp}{
+\refstepcounter{ex}%
+\begin{boxedtext}
+\setbox\exbox=\vbox{\par\hfill\framebox{\small Example~\theex}}
+\usebox\exbox
+\vskip-1em
+\vskip-\ht\exbox
+\begin{SingleSpace*}}
+{\end{SingleSpace*}
+\end{boxedtext}}
+
+\let\cite\citep
+
+%%% Main document
+\mainmatter
+
+
+\input{intro.tex}
+
+\chapter{Typed Scheme through Examples}
+\label{chap:overview}
+\input{informal}
+\input{semiformal}
+
+\chapter{Design Choices}
+\label{chap:design}
+\input{design}
+
+\chapter{Prior Work}
+\input{prior}
+
+\chapter{Integrating Typed and Untyped Code}
+\label{chap:integrate}
+\input{integrate.tex}
+
+\chapter{Occurrence Typing}
+\label{chap:occur}
+\input{occur}
+
+\pathtrue
+
+\chapter{Extensions to Occurrence Typing}
+\label{chap:occur-extend}
+\input{popl-formal2}
+
+\logictrue
+
+\input{popl-formal3}
+\input{popl-formal4}
+
+\chapter{Refinement Types}
+\label{chap:refinement}
+\input{mf-refinement}
+\input{mf-extended-example}
+
+\chapter[Variable-Arity Polymorphism]{Variable-Arity Polymorphism\footnote{This is joint work with T. Stephen Strickland~\cite{sthf:variable-arity}.}
+}
+\label{chap:dots}
+{
+\input{varar-intro}
+\input{esop09/formal}
+}
+\chapter[Implementation]{Implementation\footnote{This is joint work
+    with Ryan Culpepper and Matthew Flatt~\cite{ctf:macros}.}}
+\label{chap:impl}
+\input{scheme-syntax}
+\input{scheme-type-one}
+\input{scheme-type-multi}
+
+\chapter[Evaluation]{Evaluation\footnote{Many of the programs in this chapter were
+   originally ported to Typed Scheme by Ivan Gazeau.}}
+\label{chap:exp}
+\label{chap:eval}
+\input{icse-exp}
+
+\chapter{Related Work}
+\label{chap:related}
+\def\lateff{latent filter}
+\def\lexeff{visible filter}
+\def\subpred{sub-filter}
+
+\input{related}
+
+\chapter{Conclusion}
+\label{chap:conclusion}
+\input{conclusion}
+
+%%% The bibliography
+\bibliographystyle{plainnat}
+%\bibliographystyle{plain}
+\bibliography{new-popl}
+
+
+%%% The appendix
+%\appendix
+
+
+%%% Back stuff
+%\backmatter
+
+
+\end{document}

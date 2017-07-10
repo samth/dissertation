@@ -1,0 +1,98 @@
+\begin{schemeregion}
+\section{Macros}
+\label{sect:macros}
+
+PLT Scheme's macro system is based on the
+hygienic~\cite{cr:mtw,kffd:hygiene} \scheme{syntax-case}
+system~\cite{dhb:sc}, named after the syntactic form it provides for
+destructuring the syntax of macro occurrences. A distinguishing aspect
+of this system is its use of a syntax object system, a rich datatype
+for representing program fragments.
+
+The \scheme|syntax-case| system includes procedural macros, which have
+two major advantages over the more widely known pattern-rewriting
+macros:
+
+\begin{itemize}
+\item
+Procedural macros can perform computation at compile time.
+\item
+Procedural macros allow the programmer to detect and report syntax
+errors. Macro writers can enforce constraints on legal syntax (e.g., that
+a given list of identifiers must not contain duplicates); detect when
+those constraints are violated; and report errors in an appropriate,
+context-specific fashion. 
+\end{itemize}
+
+The macro definition in Figure~\ref{f:getset} demonstrates the major
+capabilities of \scheme{syntax-case} macros. Its purpose is to create
+procedures that access and update a shared, hidden variable.
+%
+For example, a programmer can write
+\scheme{(define-getter+setter balance)} to create definitions for
+\scheme{get-balance} and \scheme{set-balance!}.
+
+\begin{figure}
+\begin{schemedisplay}
+(define-syntax (define-getter+setter stx)
+  ;; symbol-append : symbol ... $\rightarrow$ symbol
+  (define (symbol-append . syms)
+    (string->symbol (apply string-append (map symbol->string syms))))
+  (syntax-case stx ()
+    [(define-getter+setter name init-value)
+     ;; constraint checking:
+     (unless (identifier? #'name)
+       (raise-syntax-error 'define-get+set "expected identifier" #'name))
+     ;; transformation:
+     (with-syntax
+         ([getter (datum->syntax
+		   #'name
+		   (symbol-append 'get- (syntax->datum #'name)))]
+          [setter (datum->syntax
+		   #'name
+		   (symbol-append 'set- (syntax->datum #'name) '!))])
+       #'(define-values (getter setter)
+           (let ([name init-value])
+             (values (lambda () name)
+                     (lambda (new-value) (set! name new-value))))))]))
+\end{schemedisplay}
+\caption{A \textbf{syntax-case} macro}
+\label{f:getset}
+\end{figure}
+
+The macro defines a procedural abstraction (\scheme{symbol-append}) to
+help construct names. Within the \scheme{syntax-case} clause, the
+macro checks that the given name is an identifier (a syntax object
+containing a symbol); otherwise, it raises an error. Then it uses the
+macro system's \scheme{datum->syntax} procedure together with
+its own \scheme{symbol-append} abstraction to construct the names of
+the getter and setter procedures. This macro breaks hygiene, because
+the hygiene principle states that introduced names only capture
+references to the same name that are introduced by the same macro
+transformation.
+\end{schemeregion}
+
+
+% The standard \scheme{syntax-case} system defines a few procedures that
+%constitute an API to the macro expander, including
+%\scheme{datum->syntax} and \scheme{syntax->datum}.
+
+%
+%% These, along with the others used in this paper, are given with their
+%% contracts in figure \ref{f:api}.
+
+%% \begin{figure}
+%% \begin{schemedisplay}
+%% ;; syntax-e : syntax $\rightarrow$ datum
+%% ;; strips off one layer of syntax object wrapping
+%% (syntax-e #'(a b c)) ;$\Rightarrow$ \scheme{(list #'a #'b #'c)}
+
+%% ;; datum$\rightarrow$syntax : syntax datum $\rightarrow$ syntax
+%% ;; constructs a new syntax object with the given context
+%% (datum->syntax #'here '(+ 1 2)) ;$\Rightarrow$ \scheme{#'(+ 1 2)}
+
+%% \end{schemedisplay}
+%% \caption{Macro API}
+%% \label{f:api}
+%% \end{figure}
+

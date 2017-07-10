@@ -1,0 +1,78 @@
+
+
+When scripts grow up, all too often they become unmaintainable.  One
+important reason for this is that the design information the original
+programmer had is lost, and difficult to recover.  For these scripts
+to become maintainable programs, recovering that design information is
+essential.  I have proposed that modular porting of untyped code to a
+typed sister language makes the transition from scripts to programs
+ not only possible, but easy, by facilitating this recovery process.
+
+\section{Contributions}
+
+To support this thesis, I have developed Typed Scheme, a typed sister
+language of PLT Scheme.  Typed Scheme consists of two key pieces: a
+system for sound interaction between typed and untyped modules, and a
+type system that works with traditional Scheme idioms.  
+
+Typed Scheme allows typed and untyped modules to freely interoperate,
+with higher-order values able to flow in both directions.  It also
+automatically generates runtime software contracts to enforce the
+types of the typed portions of the program and blame the appropriate
+offending party.  This integration satisfies 
+a soundness theorem that proves that the
+typed portions of the program are never blamed, generalizing Milner's
+slogan to ``well-typed \emph{modules} don't go wrong''.
+
+Typed Scheme includes a novel type system designed to accommodate
+typical Scheme programming idioms.  This includes the idea of
+occurrence typing, which allows type information from tests to be used
+in the typing of branches.  This formulation of occurrence typing also
+allows for a lightweight form of refinement types.  The type system
+also includes a novel system for handling variable arity functions,
+even those with complex relationships among their argument types.
+
+Finally, Typed Scheme is implemented and distributed as a part of
+PLT Scheme.  The implementation of Typed Scheme uses the PLT Scheme
+module and macro system to implement a sound type system as a library
+for an existing untyped language.  This implementation has been used
+to port thousands of lines of existing code, and it is used in the
+implementation of the PLT  suite of tools.  Experiments with the
+implementation indicate that porting existing untyped PLT Scheme code
+requires few changes to existing code.
+
+\section{Future Work}
+
+While Typed Scheme is useful today, much more work remains to be done.  
+
+\subsection{Flow Analysis for Porting}
+
+Existing flow analyses~\cite{shivers-thesis,ff:toplas99} generate
+results that resemble Typed Scheme types.  While experience with soft
+typing suggests that flow analysis is not appropriate for a type
+system, it may well be useful for the process of porting untyped
+Scheme code to Typed Scheme.  A tool using flow analysis could be run
+once, generating a preliminary typing for Typed Scheme.  This could
+alleviate much of the manual burden of annotating variables, as well
+as allowing complex and computationally-expensive algorithms to be
+used, since they would not be a constant part of the development
+process.  
+
+\subsection{Types for Complex Macros}
+
+While Typed Scheme's strategy of examining only post-expansion code
+performs well in most cases, it fails on the most complex macros.  The
+PLT Scheme \scheme|class|~\cite{fff:classes} and
+\scheme|unit|~\cite{ff:units} systems are implemented entirely with
+macros---but the expansion of these macros is insufficient to recover
+the programming discipline that they enforce.  Thus, typing programs
+written using these systems must rely on an understanding of these
+macros, as well as a type system that handles their unique features.  
+
+\subsection{Beyond Scheme}
+
+Scheme is not the only language that can benefit from modular addition
+of types.  Language such as JavaScript, Python, and Ruby are likely to
+benefit from the lessons of Typed Scheme.  These languages will
+require their own type system, as well as affordances for their own
+peculiar idioms and features.  

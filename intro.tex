@@ -1,0 +1,132 @@
+\chapter{From Scripts to Programs}
+\label{chap:introduction}
+
+Recently, under the heading of ``scripting languages'', a variety of
+new languages have become popular, and even pervasive, in web- and
+systems-related fields~\cite{ltm:php,ecma-std,ruby,tcltk,vd:python-ref-man,perl}.  Due to
+their popularity, programmers often create scripts that then grow into
+large applications.
+
+Most scripting languages are untyped and provide primitives with
+flexible semantics to make programs concise.  Many programmers find
+these attributes appealing and use scripting languages for these
+reasons.  Programmers are also beginning to notice, however, that
+untyped scripts are difficult to maintain over the long run. The lack
+of types means a loss of design information that programmers must
+recover every time they wish to change existing code. Both the Perl
+community~\citep{tang} and the JavaScript community~\citep{ecma-wiki,hf:js-ml} are
+implicitly acknowledging this problem with the addition of Common
+Lisp-style~\citep{cl2} typing constructs to the upcoming releases of
+their respective languages.  In the meantime, industry faces the
+problem of porting existing application systems from untyped scripting
+languages to the typed world.
+
+
+One possible solution is to rewrite the program in a typed language.
+This requires vast investment of time and resources.  It also imposes
+heavy transition costs.  Maintenance must be performed on two systems
+during the transition, and successfully reimplementing all of the
+system's features in 
+a new language is extremely difficult.  Also, the programmers must
+adjust to a new language and style of programming.  Instead of this,
+I propose to study the gradual migration from untyped to typed code.
+
+This brings me to my thesis:
+
+\begin{quote}
+{\it Module-by-module porting of code from an untyped
+language to a typed sister language allows for an easy transition from
+untyped scripts to typed programs.}
+\end{quote}
+
+In support of this thesis, I have developed Typed
+Scheme,
+a typed sister language of PLT
+Scheme~\cite{thf:dls2006,ctf:macros,thf:popl08,sthf:variable-arity}. 
+The choice of PLT Scheme  (a dialect of Scheme~\cite{r6rs,ss:scheme}) 
+is important for two reasons.
+ On one hand, PLT Scheme is used as a scripting language
+by a large number of users. It also comes with a large body of code,
+with contributions ranging from scripts to libraries to large
+operating-system like programs.  On the other hand, the language comes
+with macros, a powerful extension mechanism~\cite{f:modules}. Macros
+place a significant constraint on the design and implementation of
+Typed Scheme, since supporting macros requires typechecking a language
+with a user-defined set of syntactic forms.  This difficulty can be
+mostly overcome by integrating the type checker with the macro
+expander.  Indeed, this approach ends up greatly facilitating the
+integration of typed and untyped modules.  As envisioned
+\cite{thf:dls2006}, this integration makes it mostly straightforward
+to turn portions of a multi-module program into a partially typed yet
+still executable program.
+
+Developing Typed Scheme requires not just integration with the
+underlying PLT Scheme system, but also a type system that works well
+with the idioms used by PLT Scheme programmers when developing
+scripts.  It would be an undue burden if the programmer needed to
+rewrite idiomatic PLT Scheme code to make it typeable in Typed Scheme.
+For this purpose, Typed Scheme comes with a novel type system.  This type
+system combines the concept of \emph{occurrence typing}\footnote{The
+  term ``occurrence typing'' for this idea in the 
+  context of a type system was also coined independently of my work by
+  \citet{krcf:occurrence}.} 
+ with
+additional novel features for handling variable-arity polymorphism and
+refinement types.  
+
+\subsection*{The Structure of this Thesis}
+
+In this thesis, I describe the Typed Scheme experiment both formally
+and informally, 
+as well as its relation to past and present work by others.  In
+chapter~\ref{chap:overview}, I give an example-driven overview of the
+major features of Typed Scheme, and then describe at a high level how
+the typechecker is able to handle various representative examples.
+Chapter~\ref{chap:design} describes five key choices made in the
+design of Typed Scheme, as well as the rationale for each.
+In
+chapter~\ref{chap:prior}, I describe the extensive previous work on
+which Typed Scheme is based.  This includes both previous type systems
+for Scheme and LISP and prior work on interlanguage interoperability, as well as
+key language technologies on which  
+the design of Typed Scheme is based.  In the subsequent five chapters, I
+describe the formal systems underlying the design of Typed Scheme:
+\begin{itemize}
+\item Chapter~\ref{chap:integrate} describes how software contracts
+  mediate between typed and untyped code, leading to a soundness proof
+  for a mixed system.  This work previously appeared in the Dynamic
+  Languages Symposium at OOPSLA 2006~\cite{thf:dls2006}.
+\item Chapter~\ref{chap:occur} describes occurrence typing, the primary
+  novel feature of the Typed Scheme type system.  This work previously
+  appeared at POPL 2008~\cite{thf:popl08}, and is under submission in
+  its present form. 
+\item Chapter~\ref{chap:occur-extend} presents two extensions to
+  occurrence typing, allowing it to faithfully capture more Scheme
+  idioms.  This work is currently under submission.
+\item Chapter~\ref{chap:refinement} describes how refinement types can
+  be added to an occurrence typing system in a lightweight yet
+  expressive fashion, and presents an extended example.  This work was
+  discussed at the Workshop on Script to Program Evolution,
+  2009~\cite{thf:stop09} and is under submission in its current form.
+\item Chapter~\ref{chap:dots} describes the many ways that Scheme
+  programmers use variable-arity functions, and the technique of
+  \emph{variable-arity polymorphism} for typechecking them.
+ This work previously appeared at the European Symposium on
+ Programming, 2009~\cite{sthf:variable-arity}.
+\end{itemize}
+
+Building upon the PLT Scheme module and macro system, Typed Scheme is
+implemented entirely as a library.  This implementation, and the
+techniques on which it is based, are described in
+chapter~\ref{chap:impl}.   The implementation was previously presented
+at the Workshop on Scheme and Functional Programming,
+2007~\cite{ctf:macros}.  Using this implementation, a number of
+programmers have ported existing PLT Scheme code to Typed Scheme.
+This experience, along with quantitative measurements of the changes
+required, is described in chapter~\ref{chap:eval}.  
+
+Chapter~\ref{chap:related} compares Typed Scheme to other related work
+and explains additional connections to the literature.
+I conclude in chapter~\ref{chap:conclusion}.
+
+

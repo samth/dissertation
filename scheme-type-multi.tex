@@ -1,0 +1,486 @@
+\newcommand\Strust{\textsc{trust}}
+
+\begin{schemeregion}
+\section{Typing Modules}
+\label{sect:type-multi}
+
+Type-checking a typed module is more complicated than type-checking an
+isolated definition or expression. Module bodies may refer to
+variables that are neither primitive nor locally-defined, but imported
+from other modules. Furthermore, module exports must be protected from
+misuse in other modules, both typed and untyped.
+
+As with a single definition or expression, type-checking a module
+involves fully expanding the contents of the module and then analyzing
+the result. Typed Scheme uses the module transformer hook
+to type-check the contents of the module.
+
+The variable protocol handles variables whose definitions or bindings
+occur within the body of the module, but typing imported variables
+requires additional communication between typed modules. The revised
+protocol affects the way a typed module's exports are compiled.
+
+There are three kinds of module interactions that typed modules can
+participate in:
+\begin{enumerate}
+\item A typed module requires an untyped module.
+\item A typed module requires another typed module.
+\item An untyped module requires a typed module.
+\end{enumerate}
+The first case simply requires a method of importing untrusted code in
+such a way that it cannot break the type system's invariants, which
+demands appropriate input from the programmer.  The other two cases
+determine the behavior of a typed module's exports. Those two cases
+essentially demand different behaviors from a typed module depending
+on its use context.
+
+This section explains how Typed Scheme interacts with the module
+system. We begin with the simplest case, a typed module importing
+untyped code. This case can be explained in terms of just the import
+statement. Then we consider the case of a typed module importing
+another typed module, and we develop the basic typed-module framework.
+Finally, we show how to extend the behavior of exports to support the
+case of importing a typed module into an untyped context.
+
+\subsection{Untyped to Typed}
+
+
+Typed modules cannot use untyped modules without additional protection.%
+\footnote{However, typed modules can safely import untyped
+  \emph{macro} libraries (such as \scheme{match}) if the macros do not
+  expand into untyped, non-primitive variables.}
+%
+Instead, typed modules use a special \scheme{require/typed} form to
+import names at specific types. The \scheme{require/typed} form wraps
+the untyped imports with contracts~\cite{ff:ho-contracts} that enforce
+the supplied types via runtime checks. It also adds the name to the type
+environment with the specified type.
+
+For example, the following use of \scheme{require/typed} imports the
+\scheme{find-files} procedure from a standard library
+module:\footnote{The \scheme|Path| of this library is a filesystem
+  path, not the paths of chapter~\ref{chap:occur-extend}.}
+\begin{schemedisplay}
+(require/typed scheme/file
+  [find-files ((Path -> Boolean) Path -> (Listof Path))])
+\end{schemedisplay}
+It is equivalent to the following code fragment:
+\begin{schemedisplay}
+(require (rename-in scheme/file unsafe-find-files find-files))$^{\mbox{\scriptsize \Strust}}$
+(define: find-files : ((Path -> Boolean) Path -> (Listof Path))
+  (contract (type->contract
+             ((Path -> Boolean) Path -> (Listof Path)))
+            unsafe-find-files
+            'find-files
+            '<typed-scheme>)$^{\mbox{\scriptsize \Strust}}$)
+\end{schemedisplay}
+The $\Strust$ annotation indicates a syntax property that directs the
+type-checker to accept the labeled expression as-is.
+%
+The \scheme{contract} expression wraps the unsafe version of the
+\scheme{find-files} procedure with a contract derived from the given
+type. The last two arguments indicate the parties involved in the
+contract; if something goes wrong, one of the parties is blamed.
+
+The \scheme{find-files} contract checks the procedure's arguments and
+result. If the untyped version of \scheme{find-files} returns a
+non-path result, the contract catches it and blames
+\scheme{'find-files} before the faulty value can interfere with the
+typed program.
+%
+The first argument contract is itself a higher-order contract, so the
+contract system wraps the function passed to \scheme{find-files} with
+a contract corresponding to the \scheme{(Path -> Boolean)} type. This
+contract prevents the untyped \scheme{find-files} from calling the
+function with faulty arguments; if it does so, the contract system
+raises an error and blames \scheme{'find-files} for the violation.
+%
+The second argument contract is a first-order contract. It can only be
+violated if typed code supplies an argument of the wrong type, which
+cannot happen if the type system is sound.
+%
+Finally, if \scheme{find-files} were to return something other than a
+list of paths, the contract system would stop the program and thus
+protect the typed code that expects to process the result.
+
+%% Some types have no contract rep, like polymorphic types
+%% prob. also unions of function types.
+
+\subsection{Typed to Typed}
+
+Typed Scheme installs a \scheme{HPmodule-begin} macro that first
+performs the normal module expansion (using \scheme{local-expand}),
+analyzes the result, and produces a module body that follows a new
+\emph{module variable protocol}, which provides the type-checker with
+the types of module variables:
+\begin{schemedisplay}
+(define-syntax (module-begin stx)
+  (syntax-case stx ()
+    [(module-begin form ...)
+     (type-check-module-body
+      (local-expand #'(#%plain-module-begin form ...)
+                    'module-begin
+                    null))]))
+\end{schemedisplay}
+Unlike the type-checking procedure for top-level forms,
+\scheme{type-check-module-body} not only type-checks the module body;
+it also transforms the code to produce the module body.
+
+When one typed module requires another typed module, type-checking the
+first module requires knowing the types associated with the all of the
+definitions of the second module. The type-checker needs the types for
+all of the definitions, even the unexported ones, because an imported
+macro can expand into references to the unexported variables of the
+module it was defined in.
+%
+This requires a new protocol, the module variable protocol.
+
+Let us consider the protocol mechanisms introduced in
+section~\ref{sect:protocols}.
+%
+An imported identifier does not carry any syntax properties, so syntax
+properties alone are insufficient.
+%
+Static binding provides a partial solution: instead of directly
+providing a variable, a typed module could instead provide a macro
+that expands into a use of the actual variable. The macro would place
+a type annotation on the reference as a syntax property.
+%
+The problem with the static binding approach is that it annotates only
+the references that cross the public import/export boundary.
+% FIXME: make sure to explain this point in section 3.
+Variable references introduced by imported macros, however, do not go
+through the static binding mechanism; they refer directly to the
+module variables.
+%
+Since Typed Scheme aims to support macros, static binding is not
+a viable approach.
+
+That leaves compile-time side effects. We extend the type environment
+table to include all known typed-module definitions instead of just
+primitives and local definitions. A typed module relies on the global
+type environment to contain types for all variables that appear within
+its body, and it guarantees that its client modules have access to its
+own type associations.
+\begin{quotation}\noindent
+\textbf{The Module Variable Protocol:} 
+During the compilation of a typed module, the global type environment
+contains bindings for all definitions in all typed modules
+transitively required by the module being compiled.
+\end{quotation}
+
+Since a module's contributions to the global type environment need to
+be present during the compilation of every module that depends on it,
+we use the persistent effect pattern described in
+section~\ref{sect:syntax:persistent}. In addition to verifying the
+correctness of the module's contents, the
+\scheme{type-check-module-body} procedure also appends compile-time
+type declarations to the end of the module.
+%
+We illustrate the effect of the module transformer on the following
+modules:
+\begin{schemedisplay}
+langts ;; one
+(provide one)
+(: one Number)
+(define one 1)
+
+langts ;; plus
+(provide plus1)
+(: plus1 (Number -> Number))
+(define (plus1 n)
+  (+ n one))
+\end{schemedisplay}
+The first module passes the type-checker, which also adds a type
+declaration for \scheme{one} to the end of the compiled module:
+\begin{schemedisplay}
+(compiled-module one
+  (require typed-scheme)
+  (provide one)
+  (define one 1)
+  (begin-for-syntax
+    (declare-type! #'one (typeKW Number))))
+\end{schemedisplay}
+The reference to \scheme{declare-type!} was inserted by a macro from
+the \scheme{typed-scheme} module. Even though \scheme{one} does not
+import the \scheme{env} module directly, the procedure is available
+indirectly through \scheme{typed-scheme}. Since \scheme{typed-scheme}
+imports \scheme{env} via \scheme{for-syntax}, it is correct to
+use \scheme{declare-type!} within the compile-time part of
+\scheme{one}.
+
+When the compiler encounters the \scheme{plus} module, the module
+system invokes the compile-time part of \scheme{typed-scheme},
+initializing the global type environment with the primitive bindings
+only. Then, when the compiler encounters the import of \scheme{one} in
+the module body, it invokes the compile-time part of the \scheme{one}
+module, which loads its type declaration for \scheme{one} into
+the type environment.
+
+The \scheme{plus} module includes just one new definition, and the
+module transformer adds the corresponding declaration to the module:
+\begin{schemedisplay}
+(compiled-module plus
+  (require typed-scheme)
+  (provide plus)
+  (define plus (lambda (n) (+ n 1)))
+  (begin-for-syntax
+    (declare-type! #'plus (typeKW (Number -> Number)))))
+\end{schemedisplay}
+
+The two modules are able to communicate using \scheme{typed-scheme}'s
+type environment because the compile-time parts of the \scheme{one}
+module and the \scheme{plus} module share a single invocation of
+\scheme{typed-scheme} and thus a single invocation of the \scheme{env}
+module.
+
+Figures~\ref{fig:typed-scheme-module} and~\ref{fig:type-check-module}
+show the implementation of typed modules and the module variable
+protocol.
+
+\begin{figure}[p!]
+\begin{schemedisplay}
+langs ;; typed-scheme
+(require (for-syntax type-check))
+(provide (rename-out module-begin HPmodule-begin)
+	 (rename-out top-interaction HPtop-interaction)
+	 (except-out (all-from-out scheme)
+		     HPmodule-begin HPtop-interaction)
+	 define:
+	 lambda:)
+(define-syntax (module-begin stx)
+  (syntax-case stx ()
+    [(module-begin form ...)
+     (type-check-module-body
+      (local-expand #'(#%plain-module-begin form ...)
+		    'module-begin
+		    null))]))
+(define-syntax top-interaction ELIDED)
+(define-syntax define: ELIDED)
+(define-syntax lambda: ELIDED)
+\end{schemedisplay}
+\caption{The \variablefont{typed-scheme} module}
+\label{fig:typed-scheme-module}
+\end{figure}
+
+\begin{figure}[p!]
+\begin{schemedisplay}
+langs ;; context
+(provide typed-context?)
+;; typed-context? : (box-of boolean)
+;; True when the module being \emph{compiled} is a typed module.
+(define typed-context? (box #f))
+
+langs ;; typed-scheme
+ELIDED
+(require (for-syntax context))
+(define-syntax (module-begin stx)
+  (syntax-case stx ()
+    [(module-begin form ...)
+     (begin
+       (set-box! typed-context #t)
+       (type-check-module-body
+	(local-expand #'(#%plain-module-begin form ...)
+		      'module-begin
+		      null)))]))
+ELIDED
+\end{schemedisplay}
+\caption{Modified \variablefont{typed-scheme} module}
+\label{fig:new-ts-mod}
+\end{figure}
+
+
+\begin{figure}[p!]
+\begin{schemedisplay}
+langs ;; type-check
+(require env)
+(provide (all-defined-out))
+;; type-check-top-level : syntax $\rightarrow$ void
+(define (type-check-top-level form) ELIDED)
+;; type-check-module-body : syntax $\rightarrow$ syntax
+(define (type-check-module-body form)
+  (syntax-case form ()
+    [(module-begin top-level-form ...)
+     (let ([def-types
+	     (get-definition-types (syntax->list #'(top-level-form ...)))])
+       (for ([def def-types])
+	 (declare-type! (binding-id def) (binding-type def)))
+       (for-each type-check-module-level-form
+		 (syntax->list #'(top-level-form ...)))
+       ;; Generate declarations to reload types into the
+       ;; global type environment
+       (with-syntax ([(type-declaration ...)
+                      (map binding->type-declaration def-types)])
+         #'(module-begin top-level-form ... type-declaration ...)))]))
+;; type-check-module-level-form : syntax $\rightarrow$ void
+(define (type-check-module-level-form form) ELIDED)
+;; type-check-expression : syntax environment $\rightarrow$ type
+(define (type-check-expression expr env) ELIDED)
+;; get-definition-types : (list-of syntax) $\rightarrow$ (list-of binding)
+(define (get-definition-types forms)
+  (if (null? forms)
+      null
+      (syntax-case (car forms) (define)
+	[(define name rhs)
+	 (cons (make-binding #'name (get-id-type #'name))
+	       (get-definition-types (cdr forms)))]
+	[_ (get-definition-types (cdr forms))])))
+;; get-id-type : identifier $\rightarrow$ type
+(define (get-id-type id) ELIDED)
+;; binding$\rightarrow$type-declaration : binding $\rightarrow$ syntax
+(define (binding->type-declaration b)
+  (with-syntax ([id (binding-id b)]
+		[type-expr (type->type-expression (binding-type b))])
+    #'(begin-for-syntax (declare-type! #'id type-expr))))
+;; type$\rightarrow$type-expression : type $\rightarrow$ syntax
+(define (type->type-expression type) ELIDED)
+\end{schemedisplay}
+\caption{Type Checker}
+\label{fig:type-check-module}
+\end{figure}
+
+\subsection{Typed to Untyped}
+
+When a typed module is imported into another typed module, it must
+provide its definitions and load the type declarations into the global
+type environment.  The type-checker ensures that the exported values
+are used safely, so there is no need for run-time checking or
+wrapping.
+
+In contrast, when a typed module is imported into an untyped module,
+it should protect its exports so that the untyped context cannot
+destroy the type invariants. As in the ``untyped to typed'' case, we use
+contracts to enforce the type constraints of the definitions. For any
+defined variable, it is a simple matter to generate a definition that
+wraps the variable in the protection of the appropriate contract.
+%
+For example, the \scheme{plus} module above has a \scheme{plus1}
+procedure with type \scheme{(Number -> Number)}. Given that information,
+we can generate \scheme{defensive-plus1}:
+
+\begin{schemedisplay}
+(define/contract defensive-plus1
+    (type->contract (Number -> Number))
+  plus1)
+\end{schemedisplay}
+\noindent
+The \scheme{define/contract} form is like a definition that uses
+\scheme{contract} explicitly, except that it automatically computes
+the blame parties.
+
+A typed module, then, needs to provide one set of definitions to typed
+contexts and another set of definitions to untyped contexts.
+%
+Of course, no module can actually change the contents of its
+\scheme{provide} clauses once it is compiled. Instead, it can provide
+a set of \emph{indirection} macros that choose whether to expand into
+the trusting or defensive versions of exported names, assuming the macros
+can determine whether the importing context is typed or untyped. PLT
+Scheme provides \emph{rename transformers} as a convenient way of
+writing such identifier-to-identifier translations.
+
+Continuing the \scheme{plus} module example, the module transformer
+rewrites
+\begin{schemedisplay}
+(provide plus1)
+\end{schemedisplay}
+into the following indirection definition and renamed-provide clause:
+\begin{schemedisplay}
+(define-syntax export-plus1
+  (if ELIDED ;; Will it be used in a typed context?
+      (make-rename-transformer #'plus1)
+      (make-rename-transformer #'defensive-plus1)))
+(provide (rename export-plus1 plus1))
+\end{schemedisplay}
+The indirection definitions depend on some way of determining whether
+the context they are imported into is typed or untyped. The context
+that matters is the main module currently being compiled. If the require
+chain includes intervening modules, they have already been compiled,
+and references within the compiled modules are already resolved to the
+right version of the exports. Thus, the problem boils down to
+determining whether the main module currently being compiled is a typed
+module.
+
+The property that distinguishes a typed module is that it specifies
+\scheme{typed-scheme} as its language module, and thus its module body
+is under the control of the typed module transformer. Given that, it
+is critical to understand the exact order of events in the compilation
+process:
+\begin{enumerate}
+\item
+The compiler invokes the initial language module's compile-time
+ part.\footnote{Although this invocation occurs prior to any
+   compilation of a typed module, it cannot be used to determine
+   whether compilation is occurring in a typed context, since the
+   Typed Scheme module can be required from untyped as well as typed
+   modules. }
+\item
+Then, it executes the initial language module's module transformer on
+the body of the module being compiled.
+\item
+As the compiler encounters \scheme{require}s in the module's body, it
+invokes the compile-time parts of the relevant modules.
+\end{enumerate}
+In particular, the execution of the module transformer precedes the
+execution of any of the indirection definitions in compiled typed
+modules. The Typed Scheme module transformer can therefore set a flag
+indicating that the module being compiled is a typed module, and the
+indirection definitions can simply check the value of the flag.
+%
+Figure~\ref{fig:new-ts-mod} presents the modified \scheme{typed-scheme} module.
+
+
+The \scheme{type-check} module also adds \scheme{(require context)} so
+that the indirection definitions it inserts can refer to
+\scheme{typed-context?}.
+
+The following program illustrate how the flag works. We add an untyped
+\scheme{main} module to the \scheme{one} and \scheme{plus} modules
+from our earlier examples.
+\begin{schemedisplay}
+langts ;; one
+(provide one)
+(: one Number)
+(define one 1))
+
+langts ;; plus
+(require one)
+(provide plus1)
+(: plus1 (Number -> Number))
+(define (plus1 x)
+  (+ x one)))
+
+langs ;; main
+(require plus)
+(display (plus1 41)) (newline)
+\end{schemedisplay}
+The compiler processes the typed \scheme{one} module first, creating
+the context-dependent indirection definition for the exported variable
+\scheme{one}.
+%
+When the compiler encounters the typed \scheme{plus} module,
+it first invokes the compile-time part of \scheme{typed-scheme}. That,
+in turn, causes the invocation of the \scheme{context} module,
+including a new \scheme{typed-context?} box initialized to
+false. Executing the Typed Scheme \scheme{HPmodule-begin} macro sets
+the value in the \scheme{typed-context?} box to true. Subsequently,
+when the compiler encounters the \scheme{(require one)} form in the
+module body, it invokes \scheme{one}'s compile-time part. Since the
+\scheme{typed-context?}  variable is set to true, the indirections are
+set to the typed variants, and the compiler resolves uses of the
+imported names to the unwrapped definitions.
+
+The compilation of the \scheme{main} module proceeds differently. When
+the compiler encounters the \scheme{(require plus)} form, it invokes
+\scheme{plus}'s compile-time part, which invokes
+\scheme{typed-scheme}'s compile-time part and invokes
+\scheme{context}. This creates a fresh \scheme{typed-context?} box
+initialized to false, just as before. The box's value is never changed
+to true, however, because Typed Scheme's \scheme{HPmodule-begin} macro
+is not used in the expansion of the \scheme{main} module. Thus when
+\scheme{plus}'s indirection definitions are executed, they point to
+the contract-wrapped variants. Thus the occurrence of \scheme{plus1}
+in the \scheme{main} module is wrapped in code to verify the type of
+its argument.
+
+\end{schemeregion}

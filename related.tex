@@ -1,0 +1,176 @@
+\begin{schemeregion}
+Typed Scheme is  related to numerous other systems and
+research programs.  In particular, many researchers have explored
+connections between typed and untyped languages, with much recent work
+under the heading of ``gradual typing''.  Typed Scheme also uses
+numerous type system features pioneered in other languages.  Finally,
+the particular innovative features of the type system, such as
+occurrence typing and variable-arity polymorphism, are related to
+other work on similar questions in other languages.   This chapter
+provides a survey of this extensive literature.  
+
+\section{Gradual Typing}
+
+Under the name ``gradual typing'', several other researchers have
+experimented with the integration of typed and untyped
+code~\cite{st:gradual06, Herman07, wadler-findler, 
+  ii:gradual-featherweight, stop09}.
+  This work
+has been pursued in two directions.  First, theoretical investigations
+have considered integration of typed and untyped code at a much finer
+granularity than we present, providing soundness theorems that prove
+that only the untyped portions of the program can go wrong.  This is
+analogous to earlier work on Typed Scheme~\cite{thf:dls2006},
+which provides such a soundness theorem, given in chapter~\ref{chap:integrate}, which I believe scales to
+full Typed Scheme and PLT Scheme. 
+
+Second, \citet{furr:ruby:sac, furr:ruby:stop} have implemented a
+system for Ruby which is similar to Typed Scheme.  They have also
+designed a type system which matches the idioms of the underlying
+language, and insert dynamic checks at the borders between typed and
+untyped code.  Their work does not yet have a published soundness
+theorem, and requires the use of a new Ruby interpreter, whereas Typed
+Scheme runs purely as a library for PLT Scheme.
+
+\citet{bracha:pluggable} suggests pluggable typing systems, in which a
+programmer can choose from a variety of type systems for each piece of
+code.  Although Typed Scheme requires some annotation, it can be thought of
+as a step toward such a pluggable system, in which programmers can choose
+between the standard PLT Scheme type system and Typed Scheme on a
+module-by-module basis.
+
+\section{Type System Features}
+
+Many of the type system features in Typed
+Scheme have been extensively studied.  Polymorphism in type systems
+dates to \citet{reynolds}.  Recursive types are considered by
+\citet{ac:subtyping-recursive-types}, and union
+types by \citet{pierce-union}, among many others. 
+My use of \lexeff{}s and especially \lateff{}s is inspired by prior
+work on effect systems~\cite{fx87}.  
+
+\section{Refinement Types}
+
+Refinement types are due to \citet{fp:refinement}.
+Since then, refinement types have been used in a wide variety of
+systems~\cite{liquid-types,wadler-findler,f:hybrid}.  Previous
+refinement type systems come in two varieties.  Freeman and Pfenning's
+original system used the underlying language of ML types to specify
+subsets of the existing types, such as non-empty lists.  Most other
+systems have paired predicates in some potentially-restricted language
+with a base type, meaning the set of values of that base type accepted
+by that predicate.  Typically, this requires some algorithm for
+deciding implication between predicates for subtyping.  In some
+languages, this can be an external and almost always incomplete theorem
+prover, as in the Liquid Typing~\cite{liquid-types} and Hybrid
+Typing~\cite{f:hybrid} approaches.  
+
+The approach taken by Typed Scheme differs from both of these
+approaches.  First, refinements are not specified using the language
+of data constructors but as in-language predicates.  This
+allows any computable set to be a refinement.  Second,
+no attempt is made to decide implication between predicates.  Two
+distinct functions might be extensionally equivalent, but the
+associated refinement types have no subtyping relationship.  This
+frees both the programmer and the implementor from the burden of
+ a theorem prover.  
+
+\section{Types and Logic}
+
+Considering types as logical propositions has a long history,
+going back to Curry and Howard~\cite{cf:cl, Howard80}.  In a
+dependently typed language such a Coq~\cite{COQBook} or Agda~\cite{agda}, the
+relationships we describe with filters and objects could be encoded in
+types, since types can contain arbitrary Coq terms, including ones
+that reference other variables or the expression itself.  
+
+In Typed Scheme, the rule for typechecking \scheme|if| expressions
+propagates information known when the test evaluates
+to true to the then branch, and information known when the test
+evaluates to false to the else branch.  This could be expressed with
+an \verb|if| combinator of the following Coq type:
+
+\begin{verbatim}
+  forall Q1 Q2 Q P, (P = true -> Q1) -> (P = false -> Q2) 
+   -> (Q1 -> Q) -> (Q2 -> Q) -> Q
+\end{verbatim}
+\noindent
+In a language with dependent types, this combinator could be used with
+decision procedures that supply witnesses, a style already used in
+Coq.  Procedures such as \scheme|number?| would be reinterpreted as
+such decision procedures.  
+
+From this perspective, the Typed Scheme type system
+carves out a subset of the logical reasoning process available in 
+ programming languages with such rich type systems.  This subset is tailored to the idioms and
+styles of existing untyped Scheme code bases, and has allowed Typed Scheme to
+typecheck a wide variety of existing Scheme code.
+
+\section{Occurrence Typing}
+
+The term ``occurrence typing'' was coined by~\citet{krcf:occurrence}
+in their work on automatic understanding of legacy COBOL programs.
+Their system considers a limited
+form of occurrence typing, restricted to equality tests between
+variables and character constants, which are used as tag checks in
+existing COBOL programs.  Their system treats such
+equalities as propositions, and negates them in the else branch.  It
+does not allow abstractions over predicates, more general forms of
+predicates, or tests on non-variables. 
+
+Some features similar to those of occurrence typing have appeared in the dependent
+type literature. \citet{c:typed-lisp} describes Typed Lisp, which includes
+{\texttt{typecase}} expression that refines the type of a variable in the
+various cases; \citet{weirich98} re-invent this construct in the context of
+a typed lambda calculus with intensional polymorphism.  The
+{\texttt{typecase}} statement specifies the variable to be refined, and
+that variable is typed differently on the right-hand sides of the
+\texttt{typecase} expression.  While this system is superficially similar
+to occurrence typing in Typed Scheme, the use of latent and visible predicates allows us
+to handle cases other than simple uses of \texttt{typecase}.  This is important
+in type-checking existing Scheme code, which is not written with
+\texttt{typecase} constructs. 
+Intensional
+polymorphism without refinement of the types of variables appears in
+calculi by \citet{harper95compiling}, among others. 
+\input{esop09/related}
+
+\section{Types and Flow Analysis}
+
+In addition to the work on soft typing discussed in
+chapter~\ref{chap:prior}, other flow analysis research has attempted to
+solve problems similar to those that occurrence typing addresses.  
+
+In chapter
+9 of his thesis~\cite{shivers-thesis}, Shivers describes a type
+recovery analysis that includes refining the type of variables in type
+tests.  However, this only covered the particular case of tests for
+integers, and did not include a general mechanism for handling
+arbitrary type tests, or abstraction over such tests.  
+
+The conditional types of \citet{awl:popl94} are closely related to
+occurrence typing. Conditional types rely on a 'case' expression with
+patterns. These patterns can include nested patterns, allowing
+inspection of portions of compound data structures, as in Typed
+Scheme.  However, conditional types do not support abstraction over
+predicates, e.g., in Typed Scheme the expression \scheme|(lambda ([x :
+Any]) (or (number? x) (string?  x)))| has a non-trivial latent filter,
+whereas patterns cannot be abstracted over. Furthermore, conditional
+typing does not propagate information about possible values matched in
+one pattern to subsequent case branches.  For example, in contrast to
+occurrence typing, conditional typing cannot determine for `case x of
+cons(true,b) : true , cons(a,b) : false' that `a' cannot be `true' in
+the second branch.
+
+\subsection{Deriving Propositions}
+
+Some flow analysis systems derive formulae that describe the program that are
+not simply richer types.  For example, Might's Logic Flow
+Analysis~\cite{might:lfa} derives propositions about the equality of
+numeric values during the run of a flow analysis. The overall design of
+Might's system is different, since it involves an external
+theorem prover in interaction with a flow analysis, and derives
+propositions that are radically different from mine.  However, in a type
+checking setting, we expect that Might's system would be able to
+derive similar theorems to those of \lts.  
+\end{schemeregion}

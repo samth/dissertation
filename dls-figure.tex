@@ -1,0 +1,28 @@
+\begin{figure*}[t!]
+$$
+\inferrule[T-Var]{}{\ttgproves{x}{\Gamma(x)}{x}} \qquad
+\inferrule[T-ModVar]{{\modu{f}{e} \in P}}{\ttgproves{f}{t}{\cast t f f}}
+$$
+$$
+\inferrule[T-ModVarSelf]{\mt{f}{t}{e} \in P}{\ttgproves{f}{t}{f}} \qquad
+%\inferrule[T-Cast]{\ttgproves{e}{s}{e'}}{\ttgproves{\cast t f e}{t}{\cast t f {e'}}} \qquad
+\inferrule[T-Int]{}{\ttgproves{n}{\dlsint}{n}} 
+$$
+$$
+\inferrule[T-App]{{\ttgproves{\e1}{\dlsproctype{t_1}{t_2}}{\e1'}} \\  % \\ separates premises
+                  {\ttgproves{\e2}{t_1}{\e2'}}}
+ { {\ttgproves {\comb{\e1}{\e2}} {t_2}{\comb {\e1'} {\e2'}}}} \qquad
+$$
+$$
+\inferrule[T-If0]{{\ttgproves{\e1}{t_1}{\e1'}} \\
+                  {\ttgproves{\e2}{t_2}{\e2'}} \\
+                  {\ttgproves{\e3}{t_2}{\e3'}}}
+ { {\ttgproves {\ifz{\e1}{\e2}{\e3}}{t_2}{\ifz{\e1'}{\e2'}{\e3'}}}}
+$$
+$$
+\inferrule[T-Abs]{\ttproves{\Gamma,\hastype{x}{t}}{e}{s}{e'}}
+            {\ttgproves{\Tabs{x}{t}{e}}{\dlsproctype t s}{\Tabs{x}{t}{e'}}}
+$$
+\caption{Transformation to add Casts}
+\label{fig:trivial-transform}
+\end{figure*}

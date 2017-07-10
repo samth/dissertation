@@ -1,0 +1,46 @@
+$$\begin{array}{c}
+\inferrule[T-DAbs]{{\overvec{\tvalid{\D{}}{\t{k}}}} \\
+                   {\dtvalid{\D{}}{\dotted{\t{r}}_{\a{}}}} \\
+                   {\hasftype{\msubst{\G{}}{\x{k}}{\t{k}}}{\D{}}
+                             {\subst{\S{}}{\x{r}}{\dotted{\t{r}}_{\a{}}}}
+                             {\e{}}{\t{}}}}
+                  {\hasftype{\G{}}{\D{}}{\S{}}
+                            {(\lambda\ (\overvec{[\x{k} : \t{k}]} \rdot [\x{r} : \dotted{\t{r}}_{\a{}}])\ \e{})}
+                            {\funtype{\overvec{\t{k}}\ \dotted{\t{r}}_{\a{}}}{\t{}}}} \\
+\\
+\inferrule[T-DApply]{{\hasftype{\G{}}{\D{}}{\S{}}{\e{f}}{\funtype{\overvec{\t{k}}\ \dotted{\t{r}}_{\a{}}}{\t{}}}} \\\\
+                     {\overvec{\hasftype{\G{}}{\D{}}{\S{}}{\e{k}}{\t{k}}}} \\
+                     {\hasfdtype{\G{}}{\D{}}{\S{}}{\e{r}}{\dotted{\t{r}}_{\a{}}}}}
+                    {\hasftype{\G{}}{\D{}}{\S{}}{\ESOPcomb{\capply}{\e{f}\ \overvec{\e{k}}\ \e{r}}}{\t{}}}
+\\
+\inferrule[T-Ormap]{{\hasfdtype{\G{}}{\D{}}{\S{}}{\e{r}}{\dotted{\t{r}}_{\a{}}}} \\\\
+                   {\hasftype{\G{}}{\D{} \cup \set{\a{}}}{\S{}}{\e{f}}{\funtype{\t{r}}{\bool}}}}
+                  {\hasftype{\G{}}{\D{}}{\S{}}{\ESOPcomb{\cany}{\e{f}\ \e{r}}}{\bool}} \\
+\\
+\inferrule[T-DTAbs]{\hasftype{\G{}}{\D{} \cup \set{\overvec{\a{k}}, \dotted{\tb{}}}}{\S{}}{\e{}}{\t{}}}
+                   {\hasftype{\G{}}{\D{}}{\S{}}
+                             {\tyabs{\overvec{\a{k}}\ \dotted{\tb{}}}{\e{}}}
+                             {\alltype{\overvec{\a{k}}\ \dotted{\tb{}}}{\t{}}}} \\
+\\
+\inferrule[T-DTApp]{{\overvec[n]{\tvalid{\D{}}{\t{j}}}} \\
+                    {\overvec[m]{\tvalid{\D{}}{\t{k}}}} \\
+                    {\overvec[m]{\tb{k}} \textrm{ fresh}} \\
+                    {\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                              {\alltype{\overvec[n]{\a{j}}\ \dotted{\tb{}}}
+                                       {\t{}}}}}
+                   {\hasftype{\G{}}{\D{}}{\S{}}
+                             {\tcomb{\e{}}
+                                    {\overvec[n]{\t{j}}\ \overvec[m]{\t{k}}}}
+                             {\tddef{\t{}[\overvec[n]{\a{j} \mapsto \t{j}}]}
+                              [\overvec[m]{\tb{k} \mapsto \t{k}}]}} \\
+\\
+\inferrule[T-DTAppDots]{{\overvec{\tvalid{\D{}}{\t{k}}}} \\
+                        {\dtvalid{\D{}}{\dotted{\t{r}}_{\tb{}}}} \\
+                        {\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                                  {\alltype{\overvec{\a{k}}\ \dotted{\a{r}}}
+                                  {\t{}}}}}
+                       {\hasftype{\G{}}{\D{}}{\S{}}
+                                 {\tcomb{\e{}}
+                                        {\overvec{\t{k}}\ \dotted{\t{r}}_{\tb{}}}}
+                                 {\sddef{\t{}[\overvec{\a{k} \mapsto \t{k}}]}}} 
+\end{array}$$

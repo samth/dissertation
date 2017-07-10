@@ -1,0 +1,119 @@
+\begin{schemeregion}
+In this chapter, I describe several key design decisions and their
+rationale. 
+
+\section{Reject Ill-typed Programs}
+
+Most previous approaches to static checking for untyped languages have
+not rejected programs.  Instead, they validated all programs, and
+either issued warnings or added new runtime checks to programs that
+could not be proved safe.  In contrast, Typed
+Scheme issues an error at compile-time for programs that do not
+typecheck.  
+
+This simplifies the design and implementation of Typed Scheme in a
+number of ways.  First, Typed Scheme does not have to transform the
+program to insert dynamic checks.  Second, it allows the Typed Scheme
+type system to be more expressive than the dynamic checks that can be
+easily implemented with the PLT Scheme contract system.
+  For example, dynamic checks for types with filters
+is an open problem.  Third, it makes the programming model much
+simpler for users, by comparison to systems which automatically insert
+dynamic checks.  Almost all users of Typed Scheme have used typed
+languages before, and thus no explanation is required, and the
+program's behavior
+doesn't change based on the types. Fourth, and most importantly, all
+the errors detected by the type system are reported, meaning that the
+the programmer can rely on types in the program  for
+reasoning about the program.  Even in sound external tools, the
+program can still be run when ill-typed, whereas Typed Scheme
+statically rejects such programs as a part of the PLT Scheme execution
+process. 
+
+\section{Explicit Typing}
+
+With few exceptions, every bound variable in Typed Scheme must be
+annotated with its type.  This makes programming more inconvenient by
+comparison either to idiomatic untyped Scheme programming, or to other
+typed functional languages, especially when anonymous functions are
+used.  But it avoids several problematic aspects of type inference.
+
+First, complete inference for the Typed Scheme type system is very
+complex, since it combines polymorphism and subtyping.  Second,
+type inference is well-known to cause hard-to-decipher type errors
+with non-local behavior.  Third, experience with systems that
+performed complete type inference for untyped Scheme code suggested
+that such systems are extremely brittle, with minor code changes
+radically changing the inference results.  Fourth, type inference
+allows programmers to omit type annotations in many cases where the
+type would serve as valuable statically-checked documentation.
+
+Instead, Typed Scheme provides local type inference in certain cases:
+for type arguments to polymorphic functions, for non-recursive local
+bindings, and for some $\lambda$-bound variables.  This local
+inference removes much of the most significant burden from the
+programmer, while simplifying the implementation and preserving
+valuable checked documentation.
+
+\section{Module-level Granularity}
+
+When using Typed Scheme, a module must be either wholly typed, or
+wholly untyped.  In contrast, many other approaches to ``gradual
+typing'' have allowed mixing typed and untyped code at the expression
+level.  
+
+Both approaches obviously have the same expressiveness, since
+any piece of code can be factored out into its own module.  However,
+the module-by-module approach has several advantages.  First, modules
+are a natural level to think about the organization of code.  Second, 
+since the contracts generated at typed/untyped boundaries have runtime
+cost, module level granularity makes reasoning about the performance
+impact of typed/untyped boundaries easier.  Third, the PLT module
+system allows individual modules to specify their language, making the
+module level the most natural granularity for integration with the
+rest of PLT.  
+
+\section{Pre-expanding Macros}
+
+In Typed Scheme, all macros in the source program are expanded before
+typechecking.\footnote{This is also the approach taken by the ACL2
+  theorem prover~\cite{acl2-book}.}  This has several vital
+advantages.
+  First, since untyped Scheme code
+may use arbitrary macros, which do not come pre-equipped with type
+rules, this allows Typed Scheme to handle the full range of existing
+programs.  Second, it allows the implementation to deal with just the few
+core forms of PLT Scheme.  
+
+Since almost all control structures in PLT Scheme are defined in terms
+of \scheme|if|, occurrence typing  works for them without
+additional modification.  For example, the \scheme|match| library
+provides a sophisticated pattern matcher, which compiles to plain PLT
+Scheme.  Typed Scheme works properly for almost all uses of
+\scheme|match|, without any special implementation effort. Since PLT
+programmers use thousands of different macros, this is the only way to
+make the implementation manageable, as well as adaptable to new
+macros. 
+
+However, some macros introduce invariants that must be understood by
+the type system for proper typechecking.  These must be handled
+specially.  For example, the \scheme|define-struct| macro must
+communicate with the typechecker to introduce new types, and thus
+Typed Scheme introduces the new \scheme|define-struct:|.  This means
+that further complex macros of this sort require special handling,
+preventing their use in Typed Scheme currently.  The problem of sound
+and simple macro-extensibility of typed languages is still open.  
+
+\section{No New Idioms}
+
+For Typed Scheme, I took the idioms and styles of PLT Scheme
+programmers as they exist.  The addition of a type system allows for
+many new styles of programming, and a type system designer is always
+tempted to add these.  I have attempted to resist this temptation, and
+only add features to typecheck PLT Scheme programs that already
+exist.\footnote{Refinement types are somewhat of an exception to this
+  rule.}  This has provided a rigorous bound on what features to add
+to Typed Scheme, and on what the goals of the Typed Scheme project
+are.  As Typed Scheme becomes more widely used, and is used as the
+initial language for programs, this decision may need to be revisited.
+\end{schemeregion}

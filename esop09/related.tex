@@ -1,0 +1,64 @@
+\begin{schemeregion}
+\section{Variable-Arity Polymorphism}
+\label{sec:esop-related}
+
+Variable-arity functions are nearly ubiquitous in the world of programming
+languages, but no typed language supports them in a systematic and
+principled manner.  Here we survey existing systems as well as several
+theoretical efforts.
+
+ANSI C provides ``varargs,'' but the functions that
+implement this functionality serve as a thin wrapper around direct
+access to the stack frame.  Java~\cite{jls3} and \csharp{} are two
+statically typed languages that have only uniform variable-arity
+functions, since access occurs via a homogeneous array.
+
+\citet{dh:var-ar} come close to our goal of providing a
+practical type system for variable-arity functions.  As part of the
+Infer system for type-checking Scheme~\cite{h:infer}, they use an
+encoding of ``infinitary tuples'' as row types for an ML-like type
+inference system that handles optional arguments and uniform and
+non-uniform variable-arity functions.
+
+In comparison to the Typed Scheme approach, Dzeng and Haynes' system has several
+limitations.  Most importantly, since their system does not support
+first-class polymorphic functions, they are unable to type many of the
+definitions of variable-arity functions, such as \scheme|map| or
+\scheme|fold|.  Additionally, their system requires full type
+inference to avoid exposing users to the underlying details of row
+types, and it is also designed around a Hindley-Milner style
+algorithm. This renders it incompatible with the remainder of the
+design of Typed Scheme, which is based on a system with subtyping.
+
+\citet{cpp-varity} propose an extension for
+variadic templates to \cpp{} for the upcoming \cpp{}0x standard.  This
+proposal has been accepted by the \cpp{} standardization committee.
+Variadic templates provide a basis for implementing non-uniform
+variable-arity functions in templates.  Since the approach is grounded
+in templates, it is difficult to translate their approach to other
+languages without template systems.  
+The template approach addresses a simpler problem because template expansion
+ is a pre-processing step and types are only checked after template expansion. 
+It also significantly complicates the language,
+ since arbitrary computation can be performed during template expansion.
+Further, the template approach prevents checking of variadic functions
+at the definition site, meaning that errors in the definition are only
+caught when the function is used.
+
+\citet{zip-calc} attempts to bring non-uniform variable-arity
+functions to Haskell via the Zip Calculus, a type system with
+restricted dependent types and special kinds that serve as tuple
+dimensions.  This work is theoretical and  comes without
+practical evaluation.  The presented limitations of the Zip
+Calculus imply that it cannot assign a variable-arity type to the definition of 
+\Verb|zipWith| (Haskell's name for Scheme's \scheme|map|) without
+further extension, whereas Typed Scheme can do so.
+
+Similarly, \citet{faking-it} and \citet{moggi} present
+restricted forms of dependent typing in which the number of arguments
+is passed as a parameter to variadic functions.  Our system, while not
+allowing the expression of every dependently-typable program, is
+simpler than dependent typing, suffices for most examples we have
+encountered, and does not require an extra function parameter.
+
+\end{schemeregion}

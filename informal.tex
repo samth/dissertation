@@ -1,0 +1,673 @@
+\begin{schemeregion}
+\label{sec:informal}
+
+In this chapter, I describe the general outlines of Typed
+Scheme  via  a series of examples.  This includes simple typed
+programs, the integration between 
+typed and untyped code, occurrence typing, and variable-arity
+polymorphism.  In
+sections~\ref{sec:simple}-\ref{sec:refinement-intro}
+these are described informally, 
+and section~\ref{sec:semiformal} provides more detail to give an overview of how the
+system works.  
+
+\section{Simple Typed Scheme}
+\label{sec:simple}
+The obligatory {\it Hello, World}  Typed Scheme program is:
+
+\begin{exmp}
+\begin{schemedisplay}
+langts
+(display "Hello, World!\n")
+\end{schemedisplay}
+\label{ex:hello}
+\end{exmp}
+\noindent
+This example demonstrates several salient features of Typed Scheme.
+First, a Typed Scheme program is a PLT Scheme
+module~\cite{f:modules}, which begins with the token \scheme|hlang|.
+Second, the \scheme|typed-scheme| token after \scheme|hlang| specifies
+that the module is written in the Typed Scheme 
+language.  The program is otherwise identical to the
+corresponding untyped Scheme program.  
+
+When more complex programs are required, the type system requires
+slightly more help from the programmer:
+
+\begin{exmp}
+\begin{schemedisplay}
+langts
+(: collatz (Number -> Number))
+(define (collatz n)
+  (cond 
+   [(= 1 n) 1]
+   [(even? n)
+    (collatz (/ n 2))]
+   [else (collatz (add1 (* 3 n)))]))
+(collatz 17)
+\end{schemedisplay}
+\label{ex:collatz}
+\end{exmp}
+
+\noindent
+In this example, we define the function \scheme|collatz|, and provide
+an annotation for its input and output types.  These annotations are
+required for every top-level definition.  
+
+Typed Scheme programs can also define and manipulate new data structures:
+
+\begin{exmp}
+\begin{schemedisplay}
+langts
+(define-struct: person ([first : String] [last : String]))
+(: greeting (person -> String))
+(define (greeting n)
+  (format "~a ~a" (person-first n) (person-last n)))
+(greeting (make-person "Bob" "Smith"))
+\end{schemedisplay}
+\label{ex:struct}
+\end{exmp}
+
+The \scheme|define-struct:| form defines a new structure, with
+selectors, predicate, and constructor. The name of the structure (here
+\scheme|person|) is used as the name of the type.  The fields must be
+given types by the programmer, but the selectors
+(\scheme|person-first| and \scheme|person-last|), predicate
+(\scheme|person?|), and
+constructors (\scheme|make-person|) are given types automatically from
+the field types.   
+
+\section{Polymorphism and Local Type Inference} 
+\label{sec:poly}
+Typed Scheme supports first-class polymorphic functions.\footnote{Such
+functions are not always parametric, because occurrence typing can be used
+to examine the arguments.}
+  For example, \scheme|list-ref| has the type
+\scheme|(All (alpha) ((Listof alpha) Integer -> alpha))|.  It can be
+defined in Typed Scheme as follows:
+\begin{exmp}
+\begin{schemedisplay}
+(: list-ref (All (alpha) ((Listof alpha) Integer -> alpha)))
+(define (list-ref l i)
+   (cond [(not (pair? l)) (error "empty list")]
+         [(= 0 i) (car l)]
+         [else (list-ref (cdr l) (- i 1))]))
+\end{schemedisplay}
+\label{ex:list-ref}
+\end{exmp}
+The example illustrates two important aspects of polymorphism in Typed
+ Scheme.  First, the abstraction over types is explicit in the polymorphic
+ type of \scheme|list-ref| but implicit in the function definition. Second,
+ typical uses of polymorphic functions, e.g., \scheme|car| and
+ \scheme|list-ref|, do not require explicit type instantiation.  Instead,
+ the required type instantiations are reconstructed from the types of the
+ arguments.  
+
+\section{Integration with Untyped Scheme}
+\label{sec:integrate}
+Typed Scheme integrates smoothly and safely  with existing untyped
+Scheme code.  This means both that Typed Scheme modules can depend on
+untyped Scheme modules, and that untyped Scheme modules can depend on Typed
+Scheme modules. Further, the untyped code can never violate the
+invariants of the Typed Scheme type system. This allows free choice of which modules are
+refactored and ported to Typed Scheme.  The simplest example of
+typed/untyped integration merely uses a value from Typed Scheme in
+untyped code.
+
+\begin{exmp}
+\begin{schemedisplay}
+langts  ;; module m1
+(: x Number)
+(define x 42)
+(provide x)
+\end{schemedisplay}
+\vspace{1mm}
+\begin{schemedisplay}
+langs
+(require m1)
+(add1 x)
+\end{schemedisplay}
+\label{ex:integrate}
+\end{exmp}
+\noindent
+Since the value is being used by untyped code, no new types must be
+specified.  In contrast, when importing values \emph{from} untyped
+code, the type must be specified:
+
+\begin{exmp}
+\begin{schemedisplay}
+langs ;; module m2
+(define x 42)
+(provide x)
+\end{schemedisplay}
+\vspace{1mm}
+\begin{schemedisplay}
+langts
+(require/typed m2 [x Number])
+(add1 x)
+\end{schemedisplay}
+\label{ex:integrate-reverse}
+\end{exmp}
+
+The \scheme|require/typed| form allows the programmer to specify the
+type of an imported binding (here \scheme|x|).  The type is
+converted to a runtime
+contract~\cite{m:design-by-contract-article}, which 
+ensures that the value is appropriate to the type, and raises an error
+if not.  In the case of an error, for example if the value of
+\scheme|x| was \scheme|"42"|, \emph{blame} is assigned to
+the series of modules involved.  The Typed Scheme type system ensures (see
+chapter~\ref{chap:integrate}) that the typed portion of the program is
+never blamed for such runtime contract errors---instead, the blame
+falls on one of the untyped modules.
+
+The contract system also ensures appropriate blame for higher-order
+values~\cite{ff:ho-contracts}.  Here, errors are possible in both directions.  Several
+examples are given in figure~\ref{fig:ho-contract-ex}.  In
+example~\ref{ex:ho-integrate}, the untyped module uses the
+\scheme|add5| procedure incorrectly, resulting in a runtime contract
+error blaming the untyped module.  In
+example~\ref{ex:ho-integrate-reverse}, an incorrect use of the
+\scheme|add5| procedure would result in a static type error.  
+In example~\ref{ex:ho-integrate-reverse-wrong}, the implementation of
+the untyped \scheme|add5| procedure is incorrect, and thus a runtime
+contract error is signaled, again blaming the untyped module.
+Finally, in example~\ref{ex:ho-ho}, the contract error happens during
+the \emph{second} application, but still correctly blames the untyped
+module. 
+
+\begin{figure}
+\begin{exmp}
+\begin{schemedisplay}
+langts ;; module ho1
+(: add5 (Number -> Number))
+(define (add5 n) (+ 5 n))
+(provide add5)
+\end{schemedisplay}
+\vspace{1mm}
+\begin{schemedisplay}
+langs
+(require ho1)
+(add5 7)
+(add5 "seven") ;; contract error
+\end{schemedisplay}
+\label{ex:ho-integrate}
+\end{exmp}
+%\vspace{2mm}\hrule\vspace{2mm}
+\begin{exmp}
+\begin{schemedisplay}
+langs ;; module ho2
+(define (add5 n) (+ 5 n))
+(provide add5)
+\end{schemedisplay}
+\vspace{1mm}
+\begin{schemedisplay}
+langts
+(require ho2 [add5 (Number -> Number)])
+(add5 7)
+;;(add5 "seven") - static type error
+\end{schemedisplay}
+\label{ex:ho-integrate-reverse}
+\end{exmp}
+%\vspace{2mm}\hrule\vspace{2mm}
+
+\begin{exmp}
+\begin{schemedisplay}
+langs ;; module ho3
+(define (add5 n) (number->string (+ 5 n)))
+(provide add5)
+\end{schemedisplay}
+\vspace{1mm}
+\begin{schemedisplay}
+langts
+(require ho3 [add5 (Number -> Number)])
+(add5 7) ;; contract error
+\end{schemedisplay}
+\label{ex:ho-integrate-reverse-wrong}
+\end{exmp}
+%\vspace{2mm}\hrule\vspace{2mm}
+\begin{exmp}
+\begin{schemedisplay}
+langts ;; module ho4
+(: add-blaster (Number -> (Number -> Number)))
+(define ((add-blaster x) y)
+  (+ x y))
+$\vspace{1mm}$
+langs
+(require ho4)
+((add-blaster 1) "wrong") ;; contract error
+\end{schemedisplay}
+\label{ex:ho-ho}
+\end{exmp}
+\caption{Higher-order Contract Examples}
+\label{fig:ho-contract-ex}
+\end{figure}
+
+\section{Occurrence Typing}
+\label{sec:occur}
+Here is the simplest example of occurrence typing:\footnote{In the
+  remainder of this chapter, module declarations will be omitted where
+unnecessary.}
+
+\begin{exmp}
+\begin{schemedisplay}
+... (if (number? x) (add1 x) 0) ...
+\end{schemedisplay}
+\label{ex:simple}
+\end{exmp}
+
+\noindent
+Regardless of the value of \scheme{x}, this program fragment always
+produces a number.  Thus, our type system should accept this fragment,
+regardless of the type assigned to \scheme{x}, even if it is a type
+such as \scheme|String| or \scheme|Any|, which are not legitimate
+argument types for \scheme|add1|.
+
+The key to typing example~\ref{ex:simple} is to assign the second occurrence of
+\scheme|x| a different, more precise, type than it has in the outer
+context.  
+Fortunately, we know that for  any
+value of type \scheme|Number|, \scheme|number?| returns
+\scheme|#t| (otherwise, it returns \scheme|#f|).  Therefore, it is safe to use 
+\scheme|Number| as the type
+of \scheme|x|  in the \tbranch.
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+(define f 
+  (lambda ([x : (U String Number)])
+    (if (number? x) (add1 x) (string-length x))))
+\end{schemedisplay}
+\label{ex:numstring}
+\end{exmp}
+\noindent
+The function \scheme|f| in example~\ref{ex:numstring}
+always produces a number. If \scheme|(number? x)| produces
+\scheme|#t|, \scheme|x| is an appropriate input to \scheme|add1|. If it
+produces \scheme|#f|, \scheme|x| must be a \scheme|String| by process of
+elimination, and it is therefore an acceptable input to 
+\scheme|string-length|.  Handling this program
+means that the type system must take into account not only the consequences
+ when predicates hold, but also when they do not.
+
+\subsection{More Complex Tests}
+
+Of course, simple applications of predicates such as \scheme|(number?
+x)| are not the only kind of test that Scheme programmers write.  For
+example, it is possible to use logical connectives to combine the
+results of predicates:
+
+\begin{exmp} 
+%  \strut\par
+\begin{schemedisplay}
+... (if (or (number? x) (string? x))
+        (f x) ;; \scheme|f| from example~\ref{ex:numstring}
+        0) ...
+\end{schemedisplay}
+\label{ex:or}
+\end{exmp}
+
+\noindent
+For the fragment in example~\ref{ex:or}
+ to typecheck, the type system must recognize that the expression 
+\scheme|(or (number? x) (string? x))| ensures that \scheme|x| has
+type \scheme|(U String Number)| in the \tbranch, the domain of \scheme|f| from above.
+
+For \scheme|and|, there is no such neat connection.  In
+example~\ref{ex:andone}, conclusions are safely drawn in the \tbranch,
+regardless of the types of \scheme|x| and \scheme|y|.
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+... (if (and (number? x) (string? y))
+        (+ x (string-length y))
+        0) ...
+\end{schemedisplay}
+  \label{ex:andone}
+\end{exmp}
+\noindent
+
+However, similar assumptions cannot be made in the \ebranch.
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+;; \scheme|x| is either a \scheme|Number| or a \scheme|String|
+... (if (and (number? x) (string? y))
+        (+ x (string-length y))
+        (string-length x)) ...
+\end{schemedisplay}
+\label{ex:andtwo}
+\end{exmp}
+\label{sec:andintro}
+\noindent
+In example~\ref{ex:andtwo}, the programmer falsely assumed
+ \scheme|x| to be a \scheme|String|
+when the test fails.
+But the test may produce \scheme|#f|
+ because \scheme|x| is actually a \scheme|String|, in which case
+the program would succeed, or because \scheme|y| is not a
+\scheme|String|, but \scheme|x| \emph{is} a number, which would cause
+ \scheme|(string-length x)| to fail.  In general, when
+a conjunction is false, we do not know which conjunct is false.
+
+\subsection{Abstraction over Predicates}
+
+So far, we have seen how programmers can use predefined predicates.
+It is important, however, that programmers can also abstract over
+existing predicates and create new ones.  
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+(define strnum?
+  (lambda ([x : Any])
+    (or (string? x) (number? x))))
+\end{schemedisplay}
+  \label{ex:strnum}
+\end{exmp}
+\noindent
+Taking our
+previous example of a test for the type \scheme|(U String Number)|, we
+can create the function \scheme|strnum?|, which behaves as a predicate
+for that type.
+This means that the type system must be able to represent the fact
+that \scheme|strnum?| is a predicate for this type, so that it
+can exploit it for conditionals.
+
+\subsection{Variables, Predicates and Selectors}
+
+An important feature of Scheme that Typed Scheme must also handle is the
+ability to use arbitrary non-\scheme|#f| values as true and to
+use  \scheme|#f| as a marker for missing results, analogous to 
+ ML's {\texttt{NONE}}.\footnote{Like other dynamically typed
+   languages, Scheme treats all values that are not \scheme|#f| as
+    true.}  
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+... (let ([x (member v l)])
+      (if x
+          $\text{---  compute with \scheme|x|  ---}$
+          (error 'fail))) ...
+\end{schemedisplay}
+\label{ex:member}
+\end{exmp}
+\noindent
+Example~\ref{ex:member} represents the essence of a common
+Scheme idiom.
+The \scheme|member| procedure yields either the desired result, if
+\scheme|v| is found in \scheme|l|, or \scheme|#f|, if \scheme|v| is not
+found.  Therefore, in the \tbranch we know
+\scheme|x| is the desired result, otherwise the \ebranch
+is taken. 
+
+All of the tests thus far have involved variables
+such as \scheme|x| and \scheme|y|.  It is also  useful
+to test arbitrary expressions.  For example, we can test that the
+\scheme|car| of a pair is a \scheme|Number| with the expression
+\scheme|(number? (car p))|.
+Integrating this form of reasoning into the type system requires
+further modifications, as we will see.   
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+... (if (number? (car p)) ;; \scheme|p| : \scheme|(Pair Any Any)|
+        (add1 (car p))
+        7) ...
+\end{schemedisplay}
+\label{ex:numcar}
+\end{exmp}
+\noindent
+If \scheme|p| has the type \scheme|(Pair Any Any)|, then
+example~\ref{ex:numcar} should produce a number.\footnote{This relies
+  on the recent change to PLT Scheme to make pairs immutable by default.} 
+Of course, simply accommodating repeated applications of \scheme|car|
+is insufficient for real programs.  Instead, the relevant portions of
+the type of \scheme|p| 
+must be refined in the \tebranch of the if.
+In example~\ref{ex:gp}, we assume that  \scheme|g| has argument type
+\scheme|(Pair Number Number)|:
+%  Thus, the test expression must refine
+%the type of \scheme|p| to \scheme|(Pair Number Number)|, which is the
+%expected result of the conjunction of tests on the \scheme|car| and
+%\scheme|cdr|.  
+
+\begin{exmp}
+\begin{schemedisplay}
+... (if (and (number? (car p)) (number? (cdr p)))
+        (g p)
+        'nope) ...
+\end{schemedisplay}
+\label{ex:gp}
+\end{exmp}
+\noindent
+ Thus, the test expression must refine
+the type of \scheme|p| to \scheme|(Pair Number Number)|, which is the
+expected result of the conjunction of tests on the \scheme|car| and
+\scheme|cdr|.  
+
+As example~{\ref{ex:carnum}} shows, programmers can abstract the use
+of predicates and selectors together.  
+
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+(define carnum?
+  (lambda ([x : (Pair Any Any)]) (number? (car x))))
+\end{schemedisplay}
+\label{ex:carnum}
+\end{exmp}
+\noindent
+The \scheme|carnum?| predicate tests if the \scheme|car| of its argument is a
+\scheme|Number|.  
+
+\subsection{Reasoning Logically}
+
+Of course, we \emph{do} learn something
+when conjunctions  such as those in examples~\ref{ex:andone} and
+\ref{ex:andtwo} are false.  When a conjunction is false, we know
+that one of the conjuncts is false, and thus when all but one are true,
+the remaining one must be false.  In Scheme form, this reasoning
+principle is found quite often in nested conditionals. 
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+... (cond [(and (number? x) (string? y)) $\text{\ --- 1 ---}$]
+          [(number? x) $\hspace{32.1mm}\text{\ --- 2 ---}$]
+          [else $\hspace{47mm}\text{\ --- 3 ---}$]) ...
+\end{schemedisplay}
+\label{ex:logic}
+\end{exmp}
+\noindent
+This program represents a common idiom.\footnote{The introductory
+  textbook \textit{How to
+    Design Programs}~\cite{fffk:htdp} devotes an entire
+  section to this idiom.} 
+In clause 1, we obviously know that \scheme|x| is a \scheme|Number|
+and \scheme|y| is a \scheme|String|.  In clause 2, \scheme|x| is again
+a \scheme|Number|.  But we also know that \scheme|y| cannot be a
+\scheme|String|. 
+To make sense of the type discipline employed in such
+programs, the Typed Scheme type system must be able to follow this
+reasoning.  
+
+\subsection{Putting it all Together}
+
+Finally, we can combine all of these features into a single example
+that demonstrates all aspects of occurrence typing.  
+
+\begin{exmp}
+%  \strut\par
+\begin{schemedisplay}
+(lambda ([input : (U Number String)] [extra : (Pair Any Any)])
+  (cond
+    [(and (number? input) (number? (car extra)))
+     (+ input (car extra))]
+    [(number? (car extra))
+     (+ (string->number input) (car extra))]
+    [else 0]))
+\end{schemedisplay}
+  \label{ex:full}
+\end{exmp}
+
+
+\section{Variable-arity Functions}
+% LocalWords:  langts
+\label{sec:varar}
+PLT Scheme allows programmers to define functions that do not take a
+fixed number of arguments.  Some functions can accept any one of a set
+of numbers of arguments, or a variable number.  To accommodate these
+programming patterns, Typed Scheme supports a variety of forms of
+variable-arity function definitions.  
+
+
+\subsection{Uniform Variable-Arity Functions}
+\label{ssec:uni-va}
+
+\emph{Uniform} variable-arity functions are those that expect their rest parameter to be a
+ homogeneous list.  Consider the following three examples of type signatures:
+\begin{schemedisplay}
+(: + (Integer$^*$ -> Integer))
+(: string-append (String$^*$ -> String))
+(: list (All (alpha) (alpha$^*$ -> (Listof alpha))))
+\end{schemedisplay}
+ The syntax \scheme{Type$^*$} indicates that 0 or more arguments of
+ type \scheme|Type| are required.
+
+Here is a definition of variable-arity \scheme|+| in
+Typed Scheme:
+\begin{exmp}
+\begin{schemedisplay}
+(: + (Integer$^*$ -> Integer))
+\end{schemedisplay}
+\schemeinput{esop09/examples/plus.ss}
+\label{ex:var-plus}  
+\end{exmp}
+
+
+\subsection{Non-uniform Variable-Arity}
+\label{ssec:beyond-uva}
+
+While assuming that rest parameters are homogeneous lists of values
+makes typechecking simple, not all variable-arity functions allow this
+assumption.  
+Typechecking heterogeneous rest
+parameters requires analyzing other relationships between types.  For example, the length of
+the list assigned to the rest parameter may be connected to the types of
+other parameters or the returned value.
+
+For example, Scheme's \scheme|map| function
+maps an $n$-ary function over $n$ lists,
+ unlike its counterparts in ML or Haskell. When
+\scheme{map} receives a function \scheme{f} and $n$ lists, it expects
+\scheme{f} to accept $n$ arguments.  Also, the type of the $k$th function
+parameter must match the element type of the $k$th list.
+
+The following example is taken from the PLT Scheme code base:
+\begin{exmp}
+\begin{schemedisplay}
+;; implements a wrapper that prints \scheme{f}'s arguments
+(: verbose (All (beta alpha ...) ((alpha ... -> beta) -> (alpha ... -> beta))))
+(define (verbose f)
+  (if quiet? f (lambda a (printf "xform-cpp: ~a\n" a) (apply f a))))
+\end{schemedisplay}
+\end{exmp}
+The intent of the programmer is clear---the result of applying
+\scheme|verbose| to a function \scheme|f| should have the same type as
+\scheme|f| for {\em any} function type. Typed Scheme represents this
+by allowing \scheme|verbose| to be instantiated with a \emph{sequence}
+of type arguments, one for each of the arguments to \scheme|f|.
+
+Below are the types for some additional example functions:
+\begin{exmp}
+\begin{schemedisplay}
+;; \scheme{map} is the standard Scheme map
+(: map 
+   (All (gamma alpha beta ...) 
+     ((alpha beta ... -> gamma) (Listof alpha) (Listof beta) ... -> (Listof gamma))))
+\end{schemedisplay}
+\label{ex:map-dots}
+\end{exmp}
+\begin{exmp}
+\begin{schemedisplay}
+;; \scheme{map-with-funcs} takes any number of functions, 
+;; and then an appropriate set of arguments, and then produces 
+;; the results of applying all the functions to the arguments
+(: map-with-funcs
+   (All (beta alpha ...) ((alpha ... -> beta)$^*$ -> (alpha ... -> (Listof beta)))))
+\end{schemedisplay}
+\label{ex:map-func-dots}
+\end{exmp}
+
+When a variable-arity polymorphic type is instantiated, the dotted
+sequence is replaced with the provided sequence of type arguments.
+For \scheme|map-with-funcs|, this works as follows:
+%% \scheme|Number Integer Boolean String|
+\begin{schemedisplay}
+  (inst map-with-funcs Number Integer Boolean String)
+\end{schemedisplay}
+results in a value with the type:
+\begin{schemedisplay}
+  ((Integer Boolean String -> Number)$^*$ -> 
+  (Integer Boolean String -> (Listof Number)))
+\end{schemedisplay}
+Typed Scheme also provides local inference of the appropriate type
+arguments for dotted polymorphic functions, so explicit type
+instantiation is rarely needed~\cite{dots-tr}. 
+
+A more substantial definition of a variable-arity function is \scheme|fold-left|.
+\begin{exmp}
+\schemeinput{esop09/examples/fold-left.ss}
+\label{ex:fold-left}
+\end{exmp}
+
+Its type shows that it accepts at least three arguments: a
+ function \scheme{f}; an initial element \scheme{c};
+ and at least one list \scheme{as}. Optionally,
+ \scheme{fold-left} consumes additional lists, received as rest
+ argument \scheme|bss|, which is a sequence of lists. For
+ this combination to work out, \scheme{f} must consume as many arguments as
+ there are lists plus one; in addition, the types of these lists must match
+ the types of \scheme{f}'s parameters because each list item 
+ becomes an argument. 
+
+\section{Refinement Types}
+\label{sec:refinement-intro}
+
+Refinement types, introduced originally by \citet{fp:refinement}, are
+types which describe subsets of conventional types.  For example, the
+type of even integers is a refinement of the type of integers.  In
+Typed Scheme, we can describe a set of values with a simple Scheme
+predicate.
+
+The fundamental idea is that a boolean-valued function, such as
+\scheme|even?|, can be treated as defining a type, which is a subtype
+of the input type of \scheme|even?|.  This type has no constructors,
+but it is trivial to determine if a value is a member by using the
+predicate \scheme|even?|.  For example, consider the
+\scheme|just-even| function, which produces solely
+even numbers, and the \scheme|halve| function, which consumes only
+even numbers.
+
+\begin{exmp}
+\begin{schemedisplay}
+(: just-even (Number -> (Refinement even?)))
+(define (just-even n)
+  (if (even? n) n (error 'not-even)))
+
+(: halve ((Refinement even?) -> Number))
+(define (halve n) (/ n 2))
+\end{schemedisplay}
+\label{ex:refinement}
+\end{exmp}
+
+This technique harnesses occurrence typing to work with arbitrary
+predicates, and not just those that correspond to Scheme data types.  
+
+\end{schemeregion}

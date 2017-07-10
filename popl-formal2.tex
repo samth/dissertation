@@ -1,0 +1,156 @@
+\begin{schemeregion}
+
+Having described the basics of occurrence typing and the \lts
+calculus, in this chapter we extend the calculus with paths into
+compound data structures as well as complex logical propositions.
+
+\section{Adding Paths}
+\label{sec:paths}
+
+The base \lts calculus deals with predicates applied to variables.
+To accommodate compound data structures, however, the base system
+is insufficient.  For example, \scheme|(number? (car
+x))| has only a trivial filter set in our base system, 
+because the object for \scheme|(car x)| cannot be a variable, so it
+must be $\noeffect$.  In this section, we  extend the system to
+overcome this limitation.
+
+The key concept that allows us to typecheck this is the
+\emph{path}.\footnote{The term is due to  Cartwright et
+al.~\citep{cartwright:paths} in distantly related work.}  
+A path is simply a sequence of data structure
+selectors.  For example, the expression \scheme|(cdr (cdr (car x)))|
+follows the path $\pecdr,\pecdr,\pecar$ from \scheme|x|.  
+
+\subsection{Extending the Language}
+
+\tiny
+\begin{figure}
+\PathSyntax
+\caption{Grammar Extensions for Paths}
+\label{fig:path}
+\end{figure}
+\normalsize
+
+\begin{figure}
+\deltaext
+\caption{Operational Semantics for Pairs}
+\label{fig:oppath}
+\end{figure}
+
+To model paths and data structure access in \lts, we extend the
+language in several ways.  Figures~\ref{fig:path} and
+figure~\ref{fig:oppath} specifies the extended grammar and operation
+semantics.  The extensions to the expression grammar are minor: a
+\scheme|(cons e e)| form is added, and a pair of values is itself a
+value.  The accessors are \scheme|car| and \scheme|cdr|, and there is
+a predicate, \scheme|cons?|, for pairs.  Similarly, a pair type is
+added, written $\consty{-}{-}$.  The operational semantics merely adds
+additional evaluation contexts and $\delta$ rules.
+
+The more significant changes concern filters and
+objects.  A filter with a path $\t{\pi(\x{})}$ means that the portion of \x{}
+selected by path $\pi$ has type \t{}.  Similarly, a latent filter
+includes a path, so that the function
+
+\begin{schemedisplay}
+  (lambda ([x : (Pair Any Any)]) (number? (car x)))
+\end{schemedisplay}
+
+\noindent
+has the latent filter set $\num_{\pecar}|\comp{\num}_{\pecar}$.
+
+Objects also include paths, which describe which portion of
+the environment is accessed.  Latent objects are merely paths, with
+the singleton latent object $\bullet$ now representing the empty
+path.  
+
+\subsection{Extending the Type Rules}
+
+Adding paths to the system requires a  change to all those parts of the
+type system that manipulate filters and objects.  In particular, the
+{\sc T-Abs} and {\sc T-App} rules change to compute  objects with paths.
+  For revised rules, see figure~\ref{fig:pathty}.  We
+also need new rules for typechecking the use of \scheme|cons|,
+\scheme|car| and \scheme|cdr|, which are presented in
+figure~\ref{fig:pairty}, along with the subtyping rule for pair types.
+\footnote{With a polymorphic type
+  system, these could be simply treated as function applications by
+  the type system.}  
+
+\begin{figure}
+\[
+\absrule
+\]
+\[
+\apprule
+\]
+\[
+\subpairrule
+\]
+\caption{Modified Type Rules for Paths}
+\label{fig:pathty}
+\end{figure}
+
+\begin{figure}
+\pairRules
+\caption{New Type Rules for Pairs}
+\label{fig:pairty}
+\end{figure}
+
+The rule for \scheme|cons| is straightforward---it produces a pair
+type, and, like all other non-\scheme|#f| values, pairs are always
+ true.  {\sc T-Car} and {\sc T-Cdr} are
+similar to {\sc T-App}.  Note that the expression \scheme|(car x)| has
+the filter set $\comp{\fft}_{\pecar(\x{})}|{\fft}_{\pecar(\x{})}$,
+since if it evaluates to \scheme|#f|, the \scheme|car| field of
+\scheme|x| must have type \fft.
+
+\begin{figure*}
+\FilterMeta
+\hrule
+\EnvPlusUpdate
+\caption{New Metafunctions for Paths}
+\label{fig:newmeta}
+\end{figure*}
+
+\paragraph{Metafunctions}
+
+
+In addition to the new typing rules, several of the metafunctions must also
+be revised:
+
+ \begin{itemize}
+ \item Paths in filters and latent filters are propagated in \absf and the environment update operation ($\G{} + \op{}$).
+ \item $\metafont{update}$ follows the path to update the relevant type.
+ \item \appf composes the path of the object and of the filter.
+ \end{itemize}
+\noindent
+The new definitions are in figure~\ref{fig:newmeta}.  
+
+
+\subsection{An Example}
+
+We can now return to example~\ref{ex:numcar} from section~\ref{sec:informal} and
+see how the extended type system  typechecks it 
+correctly:
+
+\begin{schemedisplay}
+  (if (number? (car p))
+      (add1 (car p))
+      7)
+\end{schemedisplay}
+\noindent
+We begin with the type environment $\Gamma = p :
+\consty{\top}{\top}$.  Considering the test expression first, the
+expression \scheme|p| has object $p$.  Thus \scheme|(car p)| has the
+object $\pecar(p)$ and type $\top$.  When combined with the latent
+filter set of \scheme|number?|, this results in the filter set 
+$\num_{\pecar(p)}|\comp{\num}_{\pecar(p)}$ for the test expression.  
+
+The type environment for the \tbranch is therefore $\Gamma +
+\num_{\pecar(p)}$, which is $p : \metafont{update}(\consty{\top}{\top},
+\num_{\pecar})$.  This gives us the desired environment $p :
+\consty{\num}{\top}$ to bless the  \tbranch.  
+
+\end{schemeregion}

@@ -1,0 +1,232 @@
+\begin{schemeregion}
+\section{The Formal Framework}\label{sec:dls-formal}
+
+This section formally describes the interlanguage migration framework.
+\subsection{Syntax}
+
+Our scripting language is a simplified version of the language of
+\citet{mff:popl06}, augmented with types and typed
+modules.  It consists of the lambda calculus enriched with numeric
+constants and a conditional, as well as casts, modules, and
+contracts. The initial syntax used in the original program is specified in
+figure \ref{fig:syntax-untyped}.  After the migration step, the syntax
+is more complicated: see figure~\ref{fig:syntax-mixed}.  The runtime
+system collapses some distinctions and adds casts, which are specified
+in figure \ref{fig:syntax-runtime}.
+
+\noindent {\bf Modules} Our language has a simple first-order module system,
+in which each module consists of a name and a value. The module
+exports its value via its name. Modules can also be \emph{typed}. 
+Typed modules have a top-level type, and contain only typed
+values, $v_t$ in figure~\ref{fig:syntax-mixed}.
+
+\noindent {\bf Contracts and Casts} The contracts allow the base $\dlsint$
+contract, as well as function contracts.  Function
+contracts have the Findler--Felleisen semantics \cite{ff:ho-contracts}.
+At run-time, contracts turn into checks, which we express with casts.
+Syntactically, a cast $\cast {c} {e} {m}$ combines a contract with an
+expression and a label for a module, which it blames for the contract
+violation if the check fails.
+
+Casts are not part of the source language, but the state space of the
+transformation and runtime system.
+
+\noindent {\bf Types} The types of the typed fragment of the language are just
+the base type $\dlsint$ and function types. Importantly, every type is
+syntactically also a contract.  
+
+\noindent {\bf Expressions} The language contains three kinds of
+expressions: typed, untyped, and mixed.  Typed expressions occur only
+in the typed module.  Untyped expressions occur in all other modules.
+Mixed expressions can contain typed and untyped subexpressions and
+appear only in the main expression during reduction.  The main
+expression is initially an untyped closed expression, making it also a
+mixed expression.
+
+\subsection{Semantics}
+
+For the dynamic semantics, we assume that every expression (including
+values) in the original program has been labeled with the name of its
+original source module. The syntax of this annotation is given in
+figure~\ref{fig:syntax-runtime}. 
+ Contracts and casts, which do not appear in the
+original program, do not receive labels.  The main expression is
+labeled with \scheme|Main|, assumed not to be the name of any module.
+  This labeling is necessary for appropriate
+blame assignment when a dynamic error occurs. It corresponds to an
+annotation pass for source location tracking.  For clarity, we omit
+these labels wherever they are not needed.
+
+The dynamic semantics is defined in figure \ref{fig:dls-reduction} as a
+reduction semantics, and
+again follows \citet{mff:popl06}, with additions for types and
+typed modules.
+  Reduction takes place in the context of modules, which are
+not altered during reduction.  The module context is used only in the
+{\sc Lookup} rules.  The relation $\rightarrow$ is the
+one-step (standard) reduction relation, with $\dlsreduces$ as its reflexive,
+transitive closure, using the set of evaluation contexts defined in
+figure~\ref{fig:syntax-runtime}.  
+
+
+Rules that do not refer explicitly to the context are implicitly wrapped in
+$E[-]$ on both sides, with the exception of the rules that reduce to
+$\blame{f}$, which discard the evaluation context.  Rules are read in
+order, from top to bottom.  
+
+The reduction rules fall into the following categories:
+
+\begin{itemize}
+\item The rules that look up module references all refer explicitly to
+  the module context. The {\sc Lookup} rule refers to untyped
+  modules, and simply substitutes the body of the module for the
+  reference.  The {\sc Lookup-Contract} and {\sc Lookup-Type} rules
+  retrieve the appropriate expression and wrap it in a contract.  The
+  contract wrapped around typed module bodies is necessary so that typed
+  expressions are never used in incorrect ways, even when the untyped
+  modules refer to the typed module.  This check is not necessary when
+  the typed module refers to itself, and is thus omitted in the {\sc
+    Lookup-Type-Self} rule~\cite{ff:ho-contracts}.
+\item
+  The rules for the core are straightforward.
+  These include {\sc Subst} and {\sc TypedSubst}, which perform
+  $\beta_v$-reduction on untyped and typed abstractions, respectively.  
+  {\sc IF0-True} and {\sc IF0-False} are also simple.
+\item
+  {\sc App-Error} is the one runtime error that does not involve a
+  contract or a cast.  If a number is in the application position of
+  an application, clearly the invariants of the language have been
+  violated.  We blame the source of the application for this error.
+
+The remaining rules handle contracts and casts. 
+\item  {\sc Int-Int} passes numbers through $\dlsint$ contracts unchanged. 
+  
+\item {\sc Int-Lam} and {\sc Lam-Int} represent contract failures and
+  blame the appropriate party, as labeled on the cast.  $v^f$ in the
+  {\sc Int-Lam} rule cannot be an integer, otherwise {\sc Int-Int}
+  would have applied.
+
+\item {\sc Lam-Lam} blesses an arrow contract applied to an
+  abstraction, turning it into a blessed arrow contract.  In contrast
+  to {\sc Int-Int}, we must keep the contract around for later use.
+  The resulting expression, while still a cast, is also a syntactic
+  value.  The value must be an abstraction (or blessed cast applied to
+  an abstraction), all numbers match the {\sc Lam-Int} rule.
+
+\item The {\sc Split} rule breaks a blessed arrow
+  contract into its positive and negative halves, and places them around
+  the argument and the entire application.  The creation of two new
+  casts, with appropriate blame assignment, is the key to proper
+  contract checking for higher-order functions~\cite{ff:ho-contracts}.
+  The blame for the negative position is taken from the label of the
+  application itself, and the blame for the positive position is taken
+  from the label of the cast.
+
+\end{itemize}
+
+\renewcommand\tau{a}
+\newmeta\tty{t}
+
+\subsection{Adding Type Declarations}
+
+The first step in interlanguage migration requires
+the programmer to change one module from the untyped language to the
+typed one.  In our system, this involves adding types to every
+variable binding
+and to the module export as a whole.
+
+Once this module is annotated, the new program is referred to as
+$P^\tau$, where $\tau$ is the name of the now-typed module.
+
+Since the simply-typed $\lambda$-calculus has a straightforward
+type-soundness theorem, we might expect a similar one to hold for
+migrated programs,
+provided the type annotations are self-consistent.  Sadly, this is not the case.
+For example, the typed module named $\tau$ might refer to some
+other module, which could provide an arbitrary value or raise a
+run-time error.  The other modules may contain outright errors, such
+as $\comb{3}{4}$, as well as untypeable expressions such as
+$\dlsabs{x}{\ifz{x}{1}{\dlsabs{y}{y}}}$; we do not rule these out, since the
+programmer is only adding types to one module.  Furthermore, since we
+do not typecheck the other modules, they may use the typed module in
+ways that do not accord with its type.  Because of these
+possibilities, the migration process must protect the typed module
+from its untyped brethren.
+
+\subsection{Inferring Contracts from Types}
+
+In order to protect the typed module when it refers to untyped ones,
+we apply a transformation to the program that expresses the implicit
+agreements between the typed and untyped modules as contracts.
+  Our transformation
+examines the references to other modules in the typed module and from these uses
+guesses contracts that become obligations of those other modules.  For
+example, in the following program, the context makes it obvious that
+$g$ must have type $\ii$:
+\begin{schemedisplay}
+(module f int (g 5))
+\end{schemedisplay}
+The transformation would therefore add a cast using the contract $\ii$ to the
+reference to $g$ (no other casts make the module type at \scheme|int|).
+
+\input{dls-figure}
+
+The type system in figure~\ref{fig:trivial-transform} formalizes this
+intuition.  Its rules define the judgement
+$$\ttgproves{e_t}{t}{e_t'}$$ which states that given program $P$ in type environment
+$\Gamma$, expression $e_t$ has type $t$ and is transformed to expression
+$e_t'$. 
+The rules are similar to those of the simply typed
+$\lambda$-calculus, propagating and combining the
+types and transformed expressions from their constituents, except
+for the module variable reference rules: {\sc T-ModVarSelf} and
+{\sc{T-ModVar}}.  The former  checks references to the typed
+module itself.  The latter checks a reference to an untyped module.
+This module can be given any type consistent with the type of the
+surrounding typed expression, but that type is converted to a contract
+and a cast is added to check that the contract is upheld.
+
+Because of the non-determinism of the {\sc{T-ModVar}} rule, these rules do not
+naturally map onto a syntax-directed type checker.
+They do define a logic program, however, which potentially produces
+many solutions, each satisfying the desired type, and including a
+matching set of inserted contracts for checking the other modules in
+the program.  For example, consider the following program:
+
+\begin{schemedisplay}
+(module f int (g h))  
+\end{schemedisplay}
+
+There are many possible sets of contracts that could be generated by
+our system.  A simple one requires that $h$ be an $\dlsint$ and that $g$
+have the contract $\ii$.  Of course, there are infinitely many
+possibilities.  While a real system for migration would use
+programmer input and static analysis to choose one solution, our
+soundness theorem holds for all of them.  
+
+
+\subsection{Summary of the transformation}
+
+The transformation we have just described is $MT$, for
+migration transformation.
+$MT(P)$ is the set of possible results of transforming $P$ as follows:
+\begin{enumerate}
+\item The programmer chooses one module $M = \modu{a}{e}$ named $a$ from $P$
+  and adds types to this module, so that it is now a typed module
+  according to the grammar of figure~\ref{fig:syntax-mixed}, producing
+  the new module
+  $M' = \mt{a}{t}{e'}$.
+\item Using the type system described in figure
+  \ref{fig:trivial-transform}, transform the body of $M'$ into $M''$.
+  Formally, if $\ttproves{\emptyset}{e'}{\t{}}{e''}$, then $M'' = \mt{a}{t}{e''}$.
+\end{enumerate}
+\noindent
+%The new program, which is $P$ with $M$ replaced by $M''$, will be
+%called $P^a$.
+
+Since step 2 in this process is nondeterministic, the set $MT(P)$ may
+contain many distinct elements.  We prove in the next section that
+every element $Q$ of this set is sound with respect to the type
+system and blame assignment.
+
+\end{schemeregion}

@@ -1,0 +1,549 @@
+\newcommand\onestar{\multicolumn{1}{c|}{$\star$}}
+\newcommand\onestarlast{\multicolumn{1}{c||}{$\star$}}
+\newcommand\twostar{\multicolumn{1}{c|}{$\star\star$}}
+\newcommand\threestar{\multicolumn{1}{c|}{$\star\star\star$}}
+
+
+\begin{schemeregion}
+
+Assessing whether Typed Scheme truly provides an easy transition from
+untyped to typed code
+ demands practical experience.\footnote{For the development of Typed
+   Scheme, several thousand lines of textbook Scheme code were used
+   as the initial data set for determining what idioms to consider.
+   Since such code tends to be illustrative of idioms, it is well
+   suited for this purpose but not for evaluation. Additionally, a
+   system should never be evaluated for performance on its own
+   training data.  } This chapter presents the result
+ of porting several scripts, libraries, and complete applications
+ from PLT Scheme to Typed Scheme. The chosen examples are
+ representative of working code in that they are created by experienced
+ programmers and they have been in use for a significant amount of
+ time. Similarly, the process itself is representative: for all of the
+ examples,
+ all communication between the original creator of the program and the
+ ``porter'' was 
+ disallowed.
+
+
+ The first section discusses the selected examples and the
+  particular problems that they pose.  The second section
+  describes the changes that had to be made for the selected programs
+  to typecheck.  Most changes simply added type annotations. Some required changes to the code to
+  appease the typechecker, but other
+ changes fixed bugs, or handled errors
+  properly where they had been ignored.  In particular, a description of all the
+  changes made to the code of the largest example is given in section~\ref{sec:ss-changes}.
+  The third section
+  provides a quantitative account of the complexity involved in the
+  porting process, as well as a subjective account.
+
+\section{Ported Programs} % FIXME - new title
+\label{s:prog}
+The chosen programs run the gamut from widely distributed
+libraries to single-use scripts that rely heavily on PLT Scheme
+features.  
+%
+Together, they total over 5000 lines of code.  In addition,
+over 1000 lines of code in the PLT Scheme standard library is written
+in Typed Scheme, including wrapper modules for many libraries that
+are used in the selected programs.
+
+\paragraph{Squadron Scramble}
+This application, created by Matthias Felleisen, is a version of the
+multi-player card game Squadron Scramble~\cite{squadron-scramble},
+which resembles Rummy.  The
+original untyped implementation consists of 10 PLT Scheme modules,
+totaling 2200 lines of implementation code, plus 500 lines of
+unit tests.  The program maintains data about the set of cards in an
+external XML file, which it reads on startup.
+
+\paragraph{Scheme Code Metrics}
+This script is designed for applying syntactic metrics to collections
+of PLT Scheme modules and files.  It traverses directory trees,
+looking for source files, and analyzes the files found to
+determine the frequency of various programming constructs. 
+The program does not have a test suite; it is used by its author on a
+regular basis.  It consists of a single module of just over
+400 lines.
+
+\paragraph{Money Management}
+This program, also developed by Matthias Felleisen, helps with balancing
+checkbooks, and has been used for this purpose for the past decade.  It
+is not released for any other use, nor does it have a test suite.
+During its extensive use, the program has seemed bug-free over the
+past several years.  The program consists of one script and one
+library module, totaling just under 400 lines.
+
+\paragraph{Spam Filtering}
+This script is used to analyze the contents of an
+spam folder.  It has been used only by its creator, and
+consists of one PLT Scheme module of 311 lines.
+
+\paragraph{System Administration}
+This library is designed for handling system administration tasks,
+with particular emphasis on those relating to Subversion repository administration.
+It consists of 15 modules and one data file, totaling more than 1200 lines.  
+
+\paragraph{Random Number Generation}
+This is an old version of the PLT Scheme implementation of the
+widely-used SRFI 27 library for random number and bit generation.  It
+has been in wide distribution along with PLT Scheme for several years.
+It consists of a single library module of almost 600 lines.
+
+\section{Program Changes}
+
+Porting this wide variety of programs poses a number of common
+challenges and brings similar benefits to the programs
+involved.  Most changes are simply providing types, but some require
+changes to the code as executed.
+
+\subsection{Annotations}
+
+The vast majority of the changes required are simple type annotations.
+The most common is providing the type of a top-level function
+definition.  Often, this simply involves translating an existing
+comment to a statically-checked type annotation.  For example, the
+untyped code:
+
+\begin{schemedisplay}
+;; Player Hand $\rightarrow$ Void 
+(define (clean-up player hand)
+  (set-player-hand! player hand))
+\end{schemedisplay}
+\noindent
+becomes 
+\begin{schemedisplay}
+(: clean-up (player Hand -> Void))
+(define (clean-up player hand)
+  (set-player-hand! player hand))
+\end{schemedisplay}
+\noindent
+Almost all top-level definitions are annotated in this manner, without
+requiring changes to the definition of the function.
+
+The other common site of annotations is structure definitions.  The
+fields of a structure must be annotated with types, so that Typed
+Scheme can determine the types of the  structure functions.
+For example, the untyped code:
+\begin{schemedisplay}
+;; \scheme|Administrator| = \scheme|(make-administrator [Listof IPlayer])|
+(define-struct administrator (iplayers))
+\end{schemedisplay}
+becomes
+\begin{schemedisplay}
+(define-struct: administrator ([iplayers : (Listof iplayer)])
+\end{schemedisplay}
+\noindent
+Again, as the example shows, this is often a translation of a
+pre-existing comment.
+
+Two other forms of required annotation are rare.  One is the definition of
+new type aliases:
+
+\begin{schemedisplay}
+(define-type-alias Raw-Group (Pair Symbol (Listof Raw-Student)))
+\end{schemedisplay}
+\noindent
+This specifies that the type name \scheme|Raw-Group| is equivalent to
+a pair of a symbol and list of \scheme|Raw-Student|s.  Type aliases
+are useful for simplifying and shortening type annotations.
+
+Finally, when an untyped library is used, the type of imported values
+must be specified with the \scheme|require/typed| form.  
+For example, this require of the untyped library \scheme|srfi/13|:
+\begin{schemedisplay}
+(require srfi/13)
+\end{schemedisplay}
+becomes, in the typed version:
+\begin{schemedisplay}
+(require/typed srfi/13 
+  [string-pad-right (String Number Char -> String)])
+\end{schemedisplay}
+\noindent
+The \scheme|require/typed| form explicitly specifies the type of each
+imported identifier, allowing Typed Scheme to generate the appropriate
+contracts as described in chapter~\ref{chap:integrate}.
+
+In many cases, the PLT Scheme standard library provides a typed
+version of existing libraries.\footnote{These libraries were contributed in part
+  by Yinso Chen, Felix Klock, Ivan Gazeau, and David van Horn.}
+  In that case, the new \scheme|require|
+statement would be
+\scheme|(require typed/srfi/13)|, and no annotations would be required
+for the \scheme|string-pad-right| function.
+
+
+All four of these annotation forms merely specify the programmers'
+ understanding of the type structure of their program, and
+provide executable form for documentation that is often already in the
+source code.  
+
+Some other annotations are required.  Typed Scheme's inference for
+polymorphic functions does not handle the case where polymorphic
+values are used as the argument to polymorphic functions.  In this
+case, one of the functions must be explicitly instantiated at the
+appropriate type.  In some other cases, local type inference cannot
+determine the type of a variable, and it must be explicitly
+annotated.  Finally, the bound variables of $\lambda$-abstractions used as
+the argument to polymorphic functions must be explicitly annotated,
+since local inference is also unable to determine the desired type.
+Fortunately, all of these occur rarely in the programs ported---see
+section~\ref{sec:stats} for precise measurements.
+
+\subsection{Improvements}
+
+The first improvement concerns simple mistakes, such as passing the
+wrong number of arguments to a function. The chosen examples contain
+only five such errors, four of which are in example uses of data
+structures, rather than in critical code paths. This is not
+surprising because these programs had been in significant prior use.
+In the context of finding simple errors, type systems are mostly
+useful during the actual programming process.  Such simple mistakes do
+turn up in comments, which are not exercised by testing, and Typed
+Scheme discovered several instances where the comments about a
+procedure disagreed with its implementation.
+
+The second category of problems concerns
+handling of erroneous input.  This manifests itself in three forms:
+
+\begin{itemize}
+  \item Many scripts, especially those originally intended to be used
+    only once, are not designed for robustness.  Therefore, the
+    possibility of failures is ignored to simplify the programming
+    task. In PLT Scheme, the simplest case is when a script uses a
+    function that produces \scheme{#f} to indicate failure, but the script
+    does not deal with such results.  For example, the
+    expression
+    \scheme|(regexp-match "([^<, ]*)@acm\\.org" s)| produces a list
+    containing the email address in the string \scheme{s} if it
+    succeeds, and \scheme{#f} if it fails.  Many scripts that use such
+    library functions ignore the possibility of failure.
+
+    Our solution is to provide an \scheme{assert} function, which
+    translates \scheme{#f} into an exception.  This allows programmers
+    to compactly state assumptions in a
+    type-correct way.  For example, the expression 
+
+\begin{schemedisplay}
+(assert (regexp-match "([^<, ]*)@acm\\.org" s))
+\end{schemedisplay}
+
+    always
+    produces a list---or, if the regular expression matching fails,
+    raises an error.  \scheme|assert| has the type
+\begin{schemedisplay}
+(All (X) ((U X #f) -> X))
+\end{schemedisplay}
+    
+  \item A similar case occurs when a function \scheme{f} uses a function \scheme{g}
+    with a restricted domain. Ideally, \scheme{f} should check the
+    applicability of \scheme{g} and raise an error if the condition isn't
+    met. Unfortunately, many scripts ignore such cases, and thus fail
+    late and in unexpected ways. For example, the \scheme|/| function
+    requires at least one argument.  One function in the code base
+    applied \scheme|/| to a list of arguments, even when that list
+    might be empty.  To address this, the Typed Scheme versions
+    of our samples make types as precise as possible for functions such as
+    \scheme{g} and thus force errors to be discovered as early as possible,
+    with informative error messages.  In the example case, the
+    function was changed to always take a minimum of one argument.
+
+  \item The most serious problem is due to input obtained from an
+    external source and assumed to be of a certain shape.  For
+    example, the Squadron Scramble game keeps information about the
+    cards of the game in an external XML file.  When the data
+    is read in, it is assumed to be of the required format, rather
+    than being parsed.  The resulting data is used directly as input
+    to remainder of the computation, although
+    the required invariants are not checked.  Indeed, the documentation for the code
+    contains a schema for the XML format, but this is not integrated into
+    the system.
+
+    These assumptions about input can be pervasive in large portions
+    of  code, as in Squadron Scramble.  If they are, it
+    can be helpful to factor out all of the input-handling code into a
+    module that remains untyped, exporting only functions that produce
+    the relevant results in a type-correct faction.  In
+    simple cases, additional error checking  suffices.
+
+\end{itemize}
+
+Our third category of improvements is due to the elimination of
+type-inconsistent assignment statements.  For example,  one program
+always creates a data structure  using an  \scheme{init}
+function that constructs the structure with potentially
+type-incorrect data and then mutates it to be correct.  This pattern
+has two problems.  On one hand, it assumes that all the instances of
+this data structure are created using the \scheme{init} function, but
+this is not guaranteed.  On the other hand, it makes the invariant
+harder to discover and maintain by future programmers.
+In such cases, our Typed Scheme programs forgo mutation, and ensure
+that the data structure is always correct by construction.  Another
+example of this is a list variable that is later initialized by
+mutation.  In two examples, the initial value was \scheme|#f|, a value
+which is not acceptable to the other uses of the variable.  The
+necessary change is simply to initialize the variable with
+\scheme|'()| instead.
+
+\subsection{Limitations of Typed Scheme}
+
+Unfortunately, not all changes that Typed Scheme requires
+are clear-cut improvements to the program.  Our experiments have
+pinpointed three weaknesses in our approach.  This section
+discusses a few categories of such problems and how they affect the
+porting process.
+
+
+First, some facts about a program that are obvious to the programmer
+can  not be proved by typechecker.  For example, this
+\scheme|cond| expression covers all possibilities (provided that
+\scheme|x| is an integer), even though Typed
+Scheme cannot prove it:
+\begin{schemedisplay}
+(cond [(= x 0) ...]
+      [(< x 0) ...]
+      [(> x 0) ...])
+\end{schemedisplay}
+\noindent
+Fortunately, it is easy to rewrite this expression to use
+\scheme|else|, at which point Typed Scheme is able to check it
+correctly.  
+
+Another example of this is that sometimes information is known
+about the relationship between the types of two variables: if
+\scheme|x| is \scheme|#f|, then \scheme|y| is not.  While this can be
+expressed in some cases via the logical system describe in
+chapter~\ref{chap:occur-extend}, it is not always possible.  In this
+case, additional dynamic checks must be added to the program.  
+
+Second, Typed Scheme cannot, in general, typecheck macros that
+ generate hidden recursive code. In most cases, local type
+inference is sufficient to infer the types of the generated loop
+variables.  When this is not the case, however, the programmer must
+rewrite the code with an explicit loop, which can then be given an
+explicit type annotation.  This is a rare problem,
+but it causes significant difficulty to the porter when it occurs.  
+
+Third, some functions are used in special ways in PLT Scheme, such
+that the type system handles them specially.  An example is the
+\scheme|list| function, which generates fixed-length lists when
+applied to a known set of arguments.  When used to generate
+fixed-length lists in a higher-order context, Typed Scheme is unable
+to apply the special type rule.  The workaround is to $\eta$-expand
+the \scheme|list| function for the particular number of arguments,
+which allows Typed Scheme to apply the type rule for \scheme|list| to
+the explicit application.  Another example of such a function is the
+{\variablefont{values}} function.
+
+Fourth, in some cases, occurrence typing does not properly track the
+uses of type predicates.  For example, the expression 
+\scheme|(andmap number? xs)| should verify
+that \scheme|xs| is a list of numbers:
+However, this is not currently the case for Typed Scheme.  The porting
+effort found a few of these examples, which I hope to address in
+future work.
+
+
+\subsection{Changes in Squadron Scramble}
+\label{sec:ss-changes}
+
+The Squadron Scramble game is the largest of our experiments.  This
+section describes all of the non-annotation changes required for
+Squadron Scramble to typecheck. A total of twelve changes were
+required to the code of the game, some of which fixed bugs, and some
+of which worked around limitations of Typed Scheme.
+
+
+\paragraph{Workarounds}
+By far the most significant change was factoring the XML reading code
+into a separate, untyped file, and then using \scheme|require/typed|
+to import the relevant values into Typed Scheme with appropriate
+types.  This involved creating a new file of 30 lines, all taken from
+one of the existing files.  Two values from the new file were then
+\scheme|require/typed| back into the original file.\footnote{The use
+  of untyped external data sources was the original motivation of \citet{abadi}}
+
+In two places, the same datatype was assumed to be covered by two
+predicates in the untyped code.  However, Typed Scheme could not prove
+that these predicates were sufficient to cover the data type---in
+fact, the untyped program assumed that all data fit a format that was
+never checked.  The Typed Scheme code added an additional error case
+in both places.  
+
+In one place, a function produced multiple values of correlated
+types.  Typed Scheme is not able to keep track of this correlation,
+necessitating an additional dynamic check.
+
+As mentioned, Typed Scheme does not yet propagate type information
+from the \scheme|andmap| function, which necessitated an additional
+check in one place.  Similarly, Typed Scheme does not allow the
+programmer to express that the user-written \scheme|set?| predicate
+verifies that the argument is a list when it is a set.  Finally, the
+expansion of \scheme|or| uses a temporary variable, which does not fit
+with the rules for $\cf$ given in chapter~\ref{chap:occur}.  Manually
+expanding the \scheme|(or A B)| expression into \scheme|(if A #t B)|
+is sufficient to work around this limitation.  Each of these occurred
+precisely once in Squadron Scramble (and in none of the other
+experiments).  
+
+\paragraph{Bug Fixes}
+
+In one location, the \scheme|string->number| procedure was used, while
+neglecting that the result might be \scheme|#f| if the provided string
+cannot be parsed as a number.  The \scheme|assert| procedure converts
+this possibility into an exception, as described above.
+
+Four similar functions, all used as examples, call a constructor
+function with the wrong number of arguments.  Fixing these was very
+simple.  
+
+\section{Statistics and Results}
+
+\label{sec:stats}
+
+\begin{figure}[t]
+\begin{tabular}{|l|r|r|r|r|r|r||r|}
+\hline
+\mbox{}                   & Squad & Metrics & Acct & Spam & Sys  & Rand & Total \\
+\hline
+{\sc Lines}               & 2369  & 511     & 407  & 315  & 1290 & 618  & 5510  \\ \hline
+{\sc Increase}            & 7\%   & 25\%    & 7\%  & 6\%  & 1\%  & 3\%  & 7\%   \\ \hline \hline
+
+{\sc Useful Ann}          & 96    & 51      & 25   & 16   & 53   & 26   & 267   \\ \hline
+{\sc \scheme|l:| Ann}     & 34    & 22      & 2    & 8    & 22   & 0    & 88    \\ \hline
+
+{\sc Other Ann}           & 12    & 7       & 1    & 1    & 0    & 1    & 22    \\ \hline
+{\scheme|define-struct:|} & 16    & 2       & 0    & 0    & 4    & 1    & 23    \\ \hline
+{\sc Type Alias}          & 13    & 7       & 0    & 2    & 2    & 3    & 27    \\ \hline
+{\scheme|require/typed|}  & 3     & 1       & 0    & 0    & 5    & 0    & 9     \\ \hline
+{\sc Ann/100 Line}        & 7.3   & 18      & 6.9  & 8.6  & 6.7  & 5.0  & 7.9   \\ \hline\hline
+% total annotations: 436
+{\sc Fixes}               & 5     & 3       & 4    & 5    & 8    & 0    & 25    \\ \hline
+{\sc Fixes/100 Line}      & 0.21  & 0.59    & 0.98 & 1.6  & 0.62 & 0.0  & 0.45  \\ \hline
+
+{\sc Problems}            & 7     & 4       & 3    & 1    & 0    & 1    & 16    \\ \hline
+{\sc Prob/100 Line}       & 0.29  & 0.78    & 0.73 & 0.32 & 0.0  & 0.16 & 0.29  \\ \hline\hline
+
+{\sc Difficulty}  & \twostar & \threestar & \twostar & \onestar & \onestar &  \onestarlast &  \\ \hline
+
+\end{tabular}
+
+\caption{Statistics}
+\label{f:stats}
+\end{figure}
+
+
+
+Figure~\ref{f:stats} presents the quantitative results of our measurement
+effort.
+Each column represents one of the programs described in
+section~\ref{s:prog}.  The rows quantify the size of the programs,
+and the effort required to port them to Typed Scheme:  
+
+\begin{itemize}
+\item {\sc Lines:}  This is the total line count for each program
+   after porting, including comments and blank lines.
+
+\item {\sc Increase:} This is the percentage increase in number of
+  lines from the untyped version to the typed version.  The {\bf
+    Metrics} program is an outlier here---many of its types are quite
+  large and were formatted on multiple lines.
+
+\item {\sc Useful Ann:} This the count of annotations of variables
+  that recorded valuable design information about the program.  It
+  includes top-level functions, local functions, top-level constants
+  in which the untyped program provided a comment specifying the type,
+  and specifications of the types of mutable data, such as hash
+  tables. 
+
+\item \scheme|lambda:| {\sc Ann} This is the count of uses of the
+  \scheme|lambda:| form, which annotates the bound variables of a
+  \scheme|lambda| with types.  With the exception of a handful of
+  cases, this is necessary only 
+  when an anonymous function is provided as the argument to a
+  polymorphic function such as \scheme|map|.
+
+\item {\sc Other Ann:}  This is a count of all other variable
+  annotations and instantiations in the program, which do not appear
+  to record useful design information.  
+
+\item \scheme|define-struct:|  This is the number of uses of
+  \scheme|define-struct:| in the typed version of the program.  In all
+  cases, this is the same as the number of \scheme|define-struct|s in
+  the original program.
+
+\item {\sc Type Alias:}  This is the number of type aliases defined in
+  the typed version of the program.  
+
+\item \scheme|require/typed|:  This is the number of identifiers
+  imported with \scheme|require/typed|, each of which requires a type
+  to be specified.
+
+\item {\sc Ann/100 Line:}  This is the number of annotations, including
+  structs, aliases, and \scheme|require|s, per 100 lines of the typed
+  version. 
+
+\item {\sc Fixes:} This is the number of changes to the program that
+  fixed actual or potential errors in the original code.
+
+\item {\sc Fixes/100 Line:} The number of such fixes per 100 lines of
+  the typed program.
+
+\item {\sc Problems:} This is the number of changes to the program that
+  are merely to work around the typechecker.  These varied widely in
+  lines of code: moving XML parsing to a separate file affected close
+  to 100 lines, whereas other changes involved the addition of a
+  single function call.
+
+\item {\sc Prob/100 Line:} The number of such workarounds per 100 lines of
+  the typed program.
+
+\item {\sc Difficulty:} Finally, the last row indicates the subjective
+  difficulty, as experienced by the programmer(s) doing the port of the
+  program. One star is easiest, and three represent the most
+  difficult.  Here, the {\bf Metrics} system is the most
+  difficult, largely due to its complex data structures.  In
+  particular, one type of structure is used for multiple different
+  purposes in the program, which makes it difficult to express its
+  intended type in Typed Scheme.  Some of the complexity of these data
+  structures is reflected in the significant increase in the size of
+  the program.
+
+In contrast, the programs that were simplest to port have a simple
+type structure, mostly dealing with only one type or having no interesting data
+structures.  These distinctions, and not the 
+quantifiable labor effort, ultimately make the greatest difference in porting
+effort.
+
+The {\bf Squadron Scramble} game implementation fell in between.  It does not
+pose serious conceptual problems, and the code is meticulously
+commented and maintained.  But it is a code artifact of significant
+size, and thus has its own idiosyncrasies, such as the use of an
+external XML file to store data.  Therefore, it required more than a
+trivial amount of effort to port.   Ultimately, the statistical
+metrics indicate that {\bf Squadron Scramble} was representative of the
+overall sample.  
+
+\end{itemize}
+
+
+
+
+\subsection{Interpretation}
+This quantitative measurement provides a guide to the effort required to port programs
+written in PLT Scheme to Typed Scheme.  It indicates that the program
+increases in size by less than a tenth, that annotations are not overly frequent,
+ and that content changes to the running code are rarely
+required.  
+
+These numbers can only give a rough guide to the effort of
+porting programs to Typed Scheme---the most difficult portion of any
+programming task is understanding the nature of the problem and the
+form of the correct solution. In some cases, the porting programmer
+must develop a sophisticated understanding of the workings of the
+system.  No type system can offer guidance on
+the ultimate nature of this task.  But the estimates offered
+here show that Typed Scheme  requires a reasonably small effort,
+especially given the benefits for future program maintenance.  
+\end{schemeregion}

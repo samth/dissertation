@@ -1,0 +1,31 @@
+\section{Related Work}
+\label{sect:related}
+
+Experiments with adding types to Scheme go back more than twenty
+years. Wand's Semantic Prototyping System~\cite{wand84sps} uses macros
+to type-check implementations of denotational semantics.
+%
+Typed Scheme scales up the approach of SPS to a modern macro and
+module system, and it improves the interaction between typed and
+untyped code.
+
+Flanagan's static analyzer for DrScheme~\cite{ffkwf:mrspidey} analyzed
+expanded programs and used syntax source information to display the
+analysis results in the program editor. The analyzer included a macro
+protocol that let programmers annotate their programs with hints to
+the analyzer.
+%
+Meunier's followup explored the use of type-imitating contracts to
+modularize static analysis~\cite{meunier06modular}. Rather than
+analyzing the entire program, the analysis uses contracts placed at
+module boundaries to approximate the imported values.
+
+The Ziggurat project~\cite{fisher06ziggurat} has investigated
+alternate approaches to static analysis and other program observations
+in the presence of macros. Analyses in Ziggurat are implemented as
+methods on expression nodes, and derived expression forms (that is,
+macros) may either override analysis methods with special behavior or
+defer to the default analysis of the macro's expansion. Ziggurat
+represents a new approach to defining macro protocols, and it is as
+yet unclear how the Ziggurat approach compares with the mechanisms
+described here.

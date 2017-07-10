@@ -1,0 +1,77 @@
+
+There are numerous  categories of related work that we must
+consider.  First, embedding logic in type systems or treating type
+systems as logics, has a long history.  Second, a few systems with
+logical propositions \emph{in addition to} types have been developed.
+Third, several researchers have investigated type systems for
+untyped languages.  Fourth, languages with intensional type analysis
+allow checks similar to those performed by \scheme|number?|.
+ Fifth, type systems that correspond to flow
+analyses have explored a related design space.
+% Sixth, the idea of
+%refining a type into a smaller type is familiar from refinement type
+%systems.  
+
+
+\section{Types and Logic}
+
+\section{Deriving Propositions}
+A few systems derive formulae that describe the program that are
+not simply richer types.  For example, Might's Logic Flow
+Analysis~\cite{might:lfa} derives propositions about the equality of
+numeric values during the run of a flow analysis. The overall design of
+Might's system is different, since it involves an external
+theorem prover in interaction with a flow analysis, and derives
+propositions that are radically different from ours.  However, in a type
+checking setting, we expect that Might's system would be able to
+derive similar theorems to those of \lts.  
+
+\section{Types for Untyped Languages}
+
+In the past few years, there has been a wide variety of work on type
+systems for untyped languages.  In addition to Typed Scheme, proposals
+have been made for Ruby~\cite{ruby-static09}, JavaScript~\cite{ecma}, and
+other languages.  To our knowledge, no other system has yet
+incorporated occurrence typing, although Furr et al state ``one of our
+benchmarks could benefit from adding occurrence types''.  
+
+\section{Intensional Polymorphism}
+
+Languages with intensional polymorphism~\cite{weirich98} also offer
+introspective operations allowing programmers to analyze the type of
+the data provided to functions, as Typed Scheme does. This is
+typically done via a \texttt{typecase} construct.  Typed Scheme and
+occurrence typing in the spirit of \lts 
+provides significantly greater flexibility.  As we
+describe in this paper, Typed Scheme is able to use predicates applied
+to selectors, reason about combinations of tests, abstract over type
+tests, and use logical constructs such as implication to enhance the
+expressivity of the system.  
+
+\section{Types and Flow Analysis}
+
+Since the development of control flow analysis for higher-order
+languages~\cite{shivers-thesis}, a number of researchers have related
+these analyses to type systems.  In particular, a \emph{safety
+  analysis} for a flow analysis can be cast as a type system. Palsberg
+and O'Keefe~\cite{palsberg95} show that a form of 0CFA can be cast as
+a system with recursive types and subtyping, and Palsberg and
+Pavlopoulou~\cite{palsberg01} show that a polyvariant analysis is
+equivalent to a system with union and intersection types.  
+
+In chapter
+9 of his thesis~\cite{shivers-thesis}, Shivers describes a type
+recovery analysis that includes refining the type of variables in type
+tests, exploited by Wright~\cite{aw:soft-typing} and 
+Flanagan~\cite{cf:static-debugging} to create soft typing systems for Scheme.  
+  We conjecture that there is a relationship between analyses of
+this type and type systems such as \lts.  
+
+%% \section{Refinement Types}
+
+%% Refinement types are types with both a base type and a predicate,
+%% including only those values that are of the base type and satisfy the
+%% predicate~\cite{fp:refinement-types,cf:hybrid,mwh:refinement}.  \lts
+%% could be viewed as a refinement type system, but these previous
+%% systems have not used the tests of \scheme|if| expressions to
+%% calculate the refinements.  Recently, 

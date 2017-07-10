@@ -1,0 +1,128 @@
+\begin{schemeregion}
+
+Most aspects of the implementation of Typed Scheme are standard fare
+for typed programming languages.  However, there is one key novelty:
+the implementation is done entirely in terms of PLT Scheme macros.
+This implementation choice provides the following advantages: 
+
+\begin{itemize}
+\item Running the program runs the typechecker---there is no separate
+  checker to run, as there is with many static checkers for Scheme.
+\item By expanding into untyped PLT Scheme code, integration with
+  untyped code is seamless and requires no translation.
+\item The typechecker integrates relatively smoothly with the rest of the macro
+  and module system.
+\item The typechecker can take advantage of existing PLT Scheme
+  infrastructure. 
+\end{itemize}
+
+Implementing a typechecker as a macro provides its own
+challenges.  In particular, the system must deal with the existence of
+other macros, with cross-module interaction, and it must be able
+to communicate information about the source program to the
+typechecker, even though the expander is oblivious to the type system.  
+
+The macro and module system in PLT Scheme is uniquely well-suited for
+the implementation of Typed Scheme.  It contains a multitude of small
+and large features, whose development has been guided by the goal of
+supporting research on and development of new languages.  Even though
+they may be of marginal use individually, together they form a
+comprehensive language implementation framework.
+
+This chapter first introduces the relevant prerequisites of the PLT Scheme macro
+system (section~\ref{sect:macros}),
+its integration with the module system
+(section~\ref{sect:modules}), as well as how different macros can communicate
+with each other (section~\ref{sect:protocols}); 
+Typed Scheme's implementation uses all of these tools.
+  The implementation is first described relative to a
+single module (section~\ref{sect:type-one}), and then for the multi-module
+case
+(section~\ref{sect:type-multi}). 
+
+% \section{Syntax Framework}
+% \label{sect:syntax}
+
+% The evolution of PLT Scheme has been guided by two major goals:
+% \begin{itemize}
+% \item implementing DrScheme and its teaching languages
+% \item supporting research on programming tools and languages
+% \end{itemize}
+% These goals have pushed PLT Scheme to develop a powerful framework for
+% representing and manipulating programs.
+
+% This section presents a summary of the standard and nonstandard
+% features of PLT Scheme's language framework.\footnote{While some of
+% the features are PLT specific, many are supported in some form by
+% other Scheme implementations.}
+% %
+% The purpose of this section is to show how these features are a part
+% of a comprehensive language implementation framework, even those that
+% appear to be of marginal interest when considered in isolation.
+
+\input{syntax-macros}
+\input{syntax-modules}
+
+\subsection{Local expansion}
+
+Some special forms must partially expand their bodies before
+processing them. For example, primitive forms such as
+\scheme{lambda} handle internal definitions by partially expanding
+each form in the body to detect whether it is a definition or an
+expression. The prefix of definitions is collected and transformed into a
+\scheme{letrec} expression with the remainder of the original
+forms in the body.
+
+Macros can perform the same kind of partial expansion via the
+\scheme{local-expand} procedure, which applies not just to expressions
+but to entire modules as well.
+
+\subsection{Compilation-unit hooks}
+\label{sect:syntax:hooks}
+
+There are two basic compilation scenarios in PLT Scheme. In
+interactive mode, the compiler receives expressions from the
+read-eval-print loop. In module mode, the compiler processes an entire
+module at once. For each mode, the compiler provides a hook so the
+macro system can be used to control compilation of that body of code.
+
+\paragraph{Top-level transformers}
+
+The top-level read-eval-print loop automatically wraps each interaction with the
+\scheme{HPtop-interaction} macro. By defining a new version of the
+\scheme{HPtop-interaction} macro, a programmer can customize the
+behavior of each interaction.
+
+\paragraph{Module transformers}
+
+The macro expander processes a module from top to bottom,
+partially expanding to uncover definitions, \scheme{require} and
+\scheme{require-for-syntax} forms, and \scheme{provide} forms. It
+executes syntax definitions and module import forms as it encounters
+them. Then it performs another pass, expanding the remaining run-time
+expressions.
+%
+The module system provides a hook, called \scheme{HPmodule-begin},
+that allows language implementations to override the normal expansion
+of modules.
+
+The module transformer hook is typically used to constrain the
+contents of the module or to automatically import modules into the
+compile-time environment. For example, the \scheme{scheme} module
+transformer inserts calls to print the values of all top-level
+expressions in the module.
+
+The module hook technique has been used before in language
+experimentation. Specifically, \citet{pcmkf:continuations} prototyped a language for
+programming web servlets using continuations. This prototype was the
+first evidence that the module transformer is useful for
+general-purpose language experimentation.
+%
+%FrTime also uses it to optimize functional reactive programs by
+%combining nodes in the dataflow evaluation
+%graph~\cite{burchett-frtime-opt}.
+
+\input{syntax-protocols}
+
+
+\end{schemeregion}

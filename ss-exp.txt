@@ -1,0 +1,249 @@
+SQUADRON SCRAMBLE
+
+main-basic.scm
+;; FINISHED
+;; TOTAL CHANGES:
+;; 2 top level defs
+;; 2 lambda:
+;; No other changes
+
+utils/set.scm
+;; FINISHED
+;; TOTAL CHANGES:
+;; removed contract stuff
+;; Top-Level Defines: 3
+;; Required Additonal Type Annotations: 10
+;; Extra Annotations: 0
+;; Unannotated Variables: 0
+;; Annotated Expressions: 0
+;; Type Instantiations: 0
+;; 1 new function (srfi/1 member)
+
+administrator.scm
+;; FINISHED
+;; TOTAL CHANGES
+;;
+;; Top-Level Defines w/ : 5
+;; Internal Defines w/ : 2
+;; lambda: : 5
+;; typed-struct : 1
+;; type-alias : 1
+;; Unannotated Variables: 0
+;; Annotated Expressions: 0
+;; Type Instantiations: 0
+;; 1 require change (required cards.scm for Card type)
+
+utils/basic-syntax.scm
+;; FINISHED
+;; TOTAL CHANGES:  
+;; Changed 2 macros (def/prov, define-enumerate) to accomodate type information
+;; top-level : 1
+
+interact.scm
+;; FINISHED
+;; CHANGES
+;; typed-struct: 2
+;; type-alias : 0
+;; top-level def ann : 6
+;; internal def ann : 1
+;; code change: 1 (can't tell that two vars are correlated)
+
+
+deck.scm
+;; FINISHED
+;; type-alias : 1
+;; typed-struct : 0
+;; top-level def ann : 5
+;; internal def ann : 2
+
+cards.scm
+;; FINISHED
+;; top-level : 10
+;; internal : 4
+;; define-typed-struct : 5
+;; type-alias : 2
+;; require/typed of xmlfunctions.scm
+;; changes to `create-all-cards'
+;; assert: 1 (string->number)
+;; extra error case in `card-value': can't tell that coverage is complete
+
+hand.scm
+;; FINISHED
+;; CHANGES
+;; top level : 24
+;; internal : 0
+;; explicit inst : 1 (poly argument)
+;; lambda: 4
+;; code changes: 4  (or expansion, add in list?, andmap, additional error case for fighter/bomber incomplete coverage)
+;; define-type-alias: 3
+;; typed-struct : 0
+;; xml changes
+
+stack.scm
+;; FINISHED
+;; 1 type alias
+;; top-level : 6
+;; lambda: 1
+
+player.scm
+;; FINISHED
+;; caught 4 incorrect uses of `create-player' in examples
+;; 9 top-level :
+;; 5 internal :
+;; 1 lambda:
+;; 1 struct
+
+turn.scm
+FINISHED
+;; annotation on `turn-with-discards' wrong - Hand not [Listof Card]
+;; 1 lambda:
+;; 10 top-level :
+;; no internal :
+
+turn-results.scm
+FINISHED
+;; 5 top-level :
+;; 0 internal :
+;; 1 lambda: (not an argument to a higher-order fcn)
+
+
+;; Summary data
+
+TOTAL lambda: 17
+TOTAL lambda: not a higher-order fcn arg: 1
+TOTAL variables annotated not with : form: 17 + 5 + 10 = 32
+TOTAL inst: 1
+TOTAL top-level (: forms : 5 + 10 + 9 + 6 + 24 + 10 + 5 + 6 + 5 + 3 + 2 = 85
+TOTAL internal : forms : 2 + 1 + 4 + 0 + 5 = 12
+TOTAL non-useful (: 1
+TOTAL define-typed-struct : 16
+TOTAL define-type-alias : 13
+
+Code changes:
+ bad: 7
+   - andmap FIXABLE
+   - set? => list? FIXABLE
+   - or expansion FIXABLE
+   - XML
+   - 2 fighter/bomber coverage
+   - two correlated vars
+ good: 5
+   - assert on string->number
+   - 4 example functions call create-player incorrectly
+
+Original lines: 2212
+New lines: 2369
+
+==================================================================
+
+METRICS
+
+Old lines: 408
+New lines: 511
+
+define-type-alias: 7
+typed-struct: 2
+ann: 5
+internal : 2
+top-level : 49
+lambda: 22
+inst: 2 (poly arg)
+
+Code changes:
+ good:
+ - change "undefined" to nan where number required
+ - filter result of `explode-path' b/c it might have symbols
+ - change (unused) /* fcn to check that it gets at least one arg
+ bad: 
+ - return multiple values in fun arg to `fold-files'
+ easy to fix:
+ - rewrite `nonfalses' b/c (filter (\ (x) x) l) doesn't work
+ - name one lambda (selector) so that it can be annotatated multiple
+ times
+ - inline `map' on two-elem list, b/c of non-homogeneity
+
+============================================================
+
+Orig Lines: 306 + 77 = 383
+New Line: 345 + 62 = 407
+
+decimals.ss
+
+2 top-level (:
+0 internal
+0 alias, struct, ann, etc
+
+Code changes:
+ - 2 asserts added
+
+manage
+
+20 top-level
+3 internal
+2 lambda:
+1 ann
+
+Code changes:
+  good:
+    - 1 assert added
+    - remove mutation (strong update)	     (counted as good)
+  bad:
+    - change test to else for complete coverage
+    - rewrite parsing function (bad interaction w/ match)
+    - Change 2 letrec-bound vars to internal def for easier annotation     
+
+
+
+=========================================================
+
+mboxrd-read.ss
+
+Old lines: 311
+New lines: 315
+
+top-level : 14
+internal : 0
+other ann : 1
+inst : 2 (2 make-hash)
+lambda: 8
+Struct: 0
+Type alias: 2
+Code changes:
+ - 1 eta-expansion of `list' in higher-order context
+ - 5 asserts
+
+============================================================
+
+subversion/groups
+
+1290 new lines
+1252 old lines
+
+7 internal (:
+46 toplevel (:
+22 lambda:
+
+1 missing argument (raw-groups.ss)
+7 asserts
+1 wrong comment annotations
+
+no other code changes
+============================================================
+
+random-bits.ss
+
+Old Lines: 598
+New Lines: 618
+
+Total ann: 27
+Top-level ann: 20
+Internal ann: 7
+Not function: 1
+lambda: 0
+Other annotations: 0
+struct: 1
+type-alias: 3
+Code changes (1)
+  - use '() instead of #f as not-initialized-yet for list
+  - need strong updates to type program as written
+

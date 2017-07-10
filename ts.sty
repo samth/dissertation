@@ -1,0 +1,271 @@
+%\usepackage{newif}
+
+\usepackage{upgreek}
+
+\newif\ifmarg
+\margtrue
+
+\newif\ifpath
+\pathtrue
+
+\newif\iflogic
+\logictrue
+
+\let\greekmu\mu
+
+%% macros for model.tex
+
+\newcommand\overvec[2][\relax]{\vbox{\mathsurround=0pt\ialign{##\hfil&&\hfil##\crcr
+  \rightarrowfill&&$\scriptstyle{#1}$\crcr
+  \noalign{\nointerlineskip}$\hfil\displaystyle{#2}\hfil$&&\crcr}}}
+
+\newcommand\movervec[2][\relax]
+{\ifmarg 
+  \overvec[#1]{#2}
+  \else
+  {#2}
+  \fi}
+
+\renewcommand\marg[2]{\ifmarg {#1} \else {#2} \fi}
+\newcommand\whenpath[2]{\ifpath {#1} \else {#2} \fi}
+\newcommand\logic[2]{\iflogic {#1} \else {#2} \fi}
+
+\newcommand\lts{$\lambda_{TS}$~}
+
+%% metavariables
+
+% types
+\newmeta\s{\sigma}              % these are automatically wrapped in \ma
+\newmeta\t{\tau}
+\newmeta\p{\psi}
+
+% expressions
+\newmeta\M{M}
+\newmeta\N{N}
+\newmeta\P{P}
+
+% we write a macro for every bit of abstract syntax.  That way they
+% will all look the same!
+
+\newcommand\empt{\ma{\epsilon}}
+
+\newcommand\metafont[1]{\ma{\mbox{\sl #1}}}
+
+% types
+\newbfop\num{Number}
+\newbfop\bool{Boolean}
+\newbfop\str{String}
+%\def\tt{{\sf \#t}}
+%\def\ff{{\sf \#f}}
+\newbfop\tt{\ma{\#t}}
+\newbfop\ff{\ma{\#f}}
+\newbfop\ttt{\#t}
+\newbfop\fft{\#f}
+%\newbfop\wrong{wrong}
+\newbfop\ifsym{if}
+\newcommand\pecar{{\bf car}}
+\newcommand\pecdr{{\bf cdr}}
+\newcommand\noeffect{\bf \emptyset}
+%\newbfop\usym{\ma{\bigcup}}
+\newcommand\usym{\ma{\bigcup}}
+\newcommand\isym{\ma{\bigcap}}
+\newcommand\proctype[4]{\ma{#1 {\xrightarrow[#4]{#3}} #2}}
+\newcommand\proctop{\marg{\stackrel{\top}{\rightarrow}}{\proctype{\bot}{\top}{\empt|\empt}{\noeffect}}}
+%\newcommand\uty
+% \proctype is a little overkill.
+%% Reynolds' package can also abstract things like (\s1 \to \s2 \to \s3).
+
+\newcommand{\uniontwo}[2]{(\usym\ {#1}\ {#2})}
+
+
+% terms
+\newmeta\x{x}                   % not sure if \x is reserved...
+\newmeta\cc{c}
+\newcommand\numberp{\ma{\mbox{\variablefont{number?}}}}
+\newcommand\procp{\ma{\mbox{\variablefont{ procedure?}}}}
+\newcommand\addone{\ma{\mbox{\variablefont{ add1}}}}
+\newcommand\zerop{\ma{\mbox{\variablefont{ zero?}}}}
+\newcommand\boolp{\ma{\mbox{\variablefont{ boolean?}}}}
+\newcommand\notsym{\ma{\mbox{\variablefont{ not}}}}
+\newcommand\conssym{\ma{\mbox{\variablefont{ cons}}}}
+\renewcommand\car{\ma{\mbox{\variablefont{ car}}}}
+\renewcommand\cdr{\ma{\mbox{\variablefont{ cdr}}}}
+\newcommand\consp{\ma{\mbox{\variablefont{ cons?}}}}
+\newcommand\andsym{\ma{\mbox{\variablefont{ and}}}}
+\newcommand\orsym{\ma{\mbox{\variablefont{ or}}}}
+\newcommand\plus{\mathbin{+}}
+\newcommand\abs[4][\relax{}]{\ma{\l \movervec[#1]{#2:#3} . #4}}
+\newcommand\abssingle[3]{\ma{\l {#1:#2} . #3}}
+\newcommand\absgeneral[2]{\ma{\l {#1} . {#2}}}
+\newcommand\comb[2]{\ma{(#1\ #2)}}
+\newcommand\cond[3]{\ma{(\ifsym\ #1\ #2\ #3)}}
+\renewcommand\cons[2]{(\conssym\ #1\ #2)}
+
+\newcommand\consty[2]{\ma{\langle {#1} , {#2} \rangle}}
+
+\newcommand{\nott}[1]{\comb{\notsym}{#1}}
+
+\def\subtypesym{<:}
+
+\def\mdel{\logic{\Delta, }{}}
+
+% typing judgements
+\renewcommand\hastype[2]{\ma{\xspace#1 \mathbin{:} #2}}
+\newcommand\hasty[3]{\hastype{#1 \vdash #2}{#3}}
+\newcommand\hastyeff[6][\mdel \Gamma]{\ma{\hastype{#1 \vdash #2}{#3\ ;\ #4|#5\ ;\ #6}}}
+\newcommand\hastyeffo[6][\mdel \Gamma]{\ma{\hastype{#1 \vdash_o #2}{#3\ ;\ #4|#5\ ;\ #6}}}
+
+\newcommand\hastyeffphi[5][\mdel \Gamma]{\ma{\hastype{#1 \vdash #2}{#3\ ;\ #4\ ;\ #5}}}
+\newcommand\hastyeffphio[5][\mdel \Gamma]{\ma{\hastype{#1 \vdash_o #2}{#3\ ;\ #4\ ;\ #5}}}
+
+\newcommand\hastyvar[4][\mdel \Gamma]{\hastyeff [#1] {#2} {#3} {\comp{\fft}_{#4}} {{\fft}_{#4}} {#4}}
+
+
+\newcommand\hastyno[3][\mdel \Gamma]{\hastyeff [#1] {#2} {#3} {\empt} {\empt} {\noeffect}}
+\newcommand\hastytrue[3][\mdel \Gamma]{\hastyeff [#1] {#2} {#3} {\empt} {\bot} {\noeffect}}
+\newcommand\hastyfalse[3][\mdel \Gamma]{\hastyeff [#1] {#2} {#3} {\bot} {\empt} {\noeffect}}
+
+\newcommand\hastypred[4][\mdel \Gamma]{\hastyeff [#1] {#2} {\bool} {{#3}_{#4}} {{\comp{#3}}_{#4}} {\noeffect}}
+
+\newcommand\ghastyeff[3]{\ma{\hastyeff{\mdel \Gamma}{#1}{#2}{#3}}}
+\newcommand\ghasty[2]{\ma{\ghastyeff{#1}{#2}{\noeffect}}}
+
+
+
+
+\newcommand\subtype[2]{\ma{\vdash #1 \subtypesym #2}}
+\newcommand\notsubtype[2]{\ma{\vdash #1 \not\subtypesym #2}}
+\newcommand\subeff[2]{\ma{\vdash #1 \subtypesym_{?} #2}}
+
+\newcommand{\latentvarty}[4]{\proctype{#1}{#2}{{\comp{\fft}_{\whenpath{#3}{}}|{\fft}_{\whenpath{#3}{}}}}{#4}}
+\newcommand{\predty}[3][\top]{\proctype{#1}{\bool}{{#3}_{\whenpath{#2}{}}|{\comp{#3}}_{\whenpath{#2}{}}}{\noeffect}}
+\newcommand{\simpleproc}[2]{\proctype{#1}{#2}{\empt|\empt}{\noeffect}}
+
+% reductions
+
+\newcommand\subs[3]{\ma{#1[#2/#3}]}
+\newcommand\subsmulti[4]{\ma{#1[\movervec[{#4}]{#2/#3}]}}
+\newcommand\step[2]{\ma{#1 \hookrightarrow #2}}
+\newcommand\reduce[2]{\ma{#1 \rightarrow #2}}
+\newcommand\reduces[2]{\ma{#1 \rightarrow^* #2}}
+
+\newcommand\combfilter[3]{\ma{\metafont{combinefilter}({#1},{#2},{#3})}}
+\newcommand\remove[2]{\ma{\metafont{remove}({#1},{#2})}}
+\newcommand\restrict[2]{\ma{\metafont{restrict}({#1},{#2})}}
+
+\newcommand\dt[1]{\ma{\delta_{\tau}(#1)}}
+\newcommand\del[2]{\delta(#1,#2)}
+
+% from Dave
+
+\newcommand{\kw}[1]{\mbox{\textbf{#1}}}
+\newcommand{\skw}[1]{\mbox{\textsf{\textbf{#1}}}}
+\newcommand{\judge}[2]{#1 \vdash #2}
+\newcommand{\judget}[3]{\judge{#1}{#2 : #3}}
+\newcommand{\judges}[3]{\judge{#1}{#2 : #3}}
+\newcommand{\judgeP}[1]{\judge{}{#1\ \ok}}
+\newcommand{\macroval}[3]{\langle \kw{macro:}\ #1, #2, #3 \rangle}
+\newcommand{\mclause}[3]{\langle #1, #2, #3 \rangle}
+\newcommand{\mtype}[2]{#1 \rightarrow #2}
+
+\newcommand{\dc}{\underline{\hspace{.5em}}}
+\newcommand\TAKESOMESPACEONTOP{\rule{0pt}{2.4ex}}
+\newcommand\TAKESOMESPACEONBOTTOM{\rule[-1.2ex]{0pt}{0pt}}
+
+\newcommand{\judgment}[2]{%
+\begin{center}%
+\[%
+\begin{tabular*}{0.95\textwidth}{@{\extracolsep{\fill}}lr}%
+\mbox{\textbf{#1}} & \fbox{$ #2 $}%
+\end{tabular*}%
+\]%
+\end{center}}
+\newcommand{\mathsc}[1]{\mbox{\textsc{#1}}}
+
+\newcommand{\latentmvar}[1]{
+  {\ifthenelse{\equal{#1}{\phi}}
+    {\upphi}
+    {\ifthenelse{\equal{#1}{\psi}}
+      {\uppsi}
+      {\ifthenelse{\equal{#1}{s}}
+        {S}
+        {\ifthenelse{\equal{#1}{\bot}}
+          {\mbox{\boldmath$\bot\!\!\!\!\bot$}}
+          {\ifthenelse{\equal{#1}{o}}
+            {O}
+            {\doesnotexist{#1}}}}}}}}
+
+\newmeta\e{e}
+\newmeta\y{y}
+\newmeta\G{\Gamma}
+\newmeta\E{E}
+\newmeta\d{d}
+\newmeta\b{\beta}
+\newmeta\c{c}
+\newmeta\L{L}
+\newmeta\R{R}
+\newmeta\uu{u}
+\newmeta\vv{v}
+\newmeta\kk{k}
+\newmeta\n{n}
+\newmeta\i{i}
+\newmeta\pe{pe}
+\newmeta\ph{\latentmvar{\psi}}
+\newmeta\sig{\sigma}
+\newmeta\s{o}
+\newmeta\sh{\latentmvar{o}}
+\newmeta\phii{{\phi}}
+\newmeta\phih{\latentmvar{\phi}}
+
+\newcommand{\comp}[1]{\overline{#1}}
+\newmeta\compt{\comp{\tau}}
+\newmeta\ups{\upsilon}
+
+\newcommand{\both}{\latentmvar{\bot}}
+
+%\newcommand\v{\vv{}}
+
+\newcommand\newometa[2]{\def#1##1{\ensuremath{\overvec{#2_{##1}}}}}
+
+
+\newometa\op{\psi}
+\newometa\opp{\psi'}
+\newometa\oph{\latentmvar{\psi}}
+
+\newcommand{\abstractfilter}[2]{\ma{\metafont{abstractfilter}({#1}, {#2})}}
+\newcommand{\nooverlap}[2]{\ma{\metafont{no-overlap}({#1}, {#2})}}
+\newcommand{\applyfilter}[3]{\ma{\metafont{applyfilter}({#1}, {#2}, {#3})}}
+\newcommand{\abstractone}[2]{\ma{\metafont{abo}({#1}, {#2})}}
+\newcommand{\applyone}[3]{\ma{\metafont{apo}({#1}, {#2}, {#3})}}
+
+\newcommand{\pii}{\marg{\pi(\i{})}{\pi}}
+\newcommand{\pipi}{\marg{\pi'(\i{})}{\pi'}}
+
+%\newcommand\newmeta[2]{\def#1##1{\ensuremath{#2_{##1}}}}
+
+\newcommand{\defwrap}[2]{\def#1##1{\whenpath{\ensuremath{#2(##1)}}{##1}}}
+
+\defwrap\wpi{\pi}
+\defwrap\wpip{\pi'}
+
+\newcommand{\pathmaybe}[1]{\whenpath{#1}{\bullet}}
+
+\def\pimaybe{\whenpath{\pi}{}}
+
+\def\pempt{\whenpath{\empt}{}}
+
+\newcommand{\imp}[2]{\ma{{#1} \supset {#2}}}
+
+\newcommand{\derive}[3]{#1 \cup #2 \vdash #3}
+
+\newcommand{\ponly}[1]{\whenpath{#1}{}}
+\newcommand{\lonly}[1]{\logic{#1}{}}
+
+\newcommand{\msubi}[1]{\marg{{#1}_i}{#1}}
+
+\renewcommand{\xi}{\msubi{\x{}}}
+\newcommand{\sai}{\msubi{\s{a}}}
+
+\newcommand{\tbranch}{\textsf{then} branch\xspace}
+\newcommand{\ebranch}{\textsf{else} branch\xspace}
+\newcommand{\tebranch}{\textsf{then} and \textsf{else} branches\xspace}

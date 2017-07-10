@@ -1,0 +1,167 @@
+\definecolor{lightgray}{rgb}{.90,.90,.90}
+\definecolor{gray}{rgb}{.50,.50,.50}
+\definecolor{mediumgray}{rgb}{.60,.60,.60}
+\definecolor{darkgray}{rgb}{.25,.25,.25}
+
+\newcommand{\stain}[1]{\colorbox{lightgray}{{\ma{#1}}}}
+
+% types
+\newmeta\t{\tau}
+
+% terms
+\newmeta\e{e}
+\newmeta\v{v}
+
+% contexts
+\newmeta\E{E}
+
+% environments
+\newmeta\G{\Gamma}
+\newmeta\D{\Delta}
+\newmeta\S{\Sigma}
+
+% mapping
+\newmeta\X{X}
+
+%% abstract syntax
+
+% types
+\newmeta\a{\alpha}
+\newmeta\tb{\beta}
+
+\newbfop\num{Integer}
+\newbfop\bool{Boolean}
+\newbfop\listof{Listof}
+
+\newttop\rdot{.}
+
+\newcommand\funtype[2]{\ma{(#1 \to #2)}}
+\newcommand\alltype[2]{\ma{(\forall\ (#1)\ #2)}}
+
+\newcommand\mfuntype[2]{\ma{(\overvec{#1} \to #2)}}
+\newcommand\malltype[2]{\ma{(\forall\ (\overvec{#1})\  #2)}}
+
+\newcommand\listtype[1]{\ma{(\listof\ #1)}}
+\newcommand\malltypesing[2]{\ma{(\forall\ (#1)\  #2)}}
+\newcommand\mfuntypebi[3]{\ma{(#1\ #2 \to #3)}}
+
+\newcommand\dotted[1]{\ma{#1\ \textbf{...}}}
+\newcommand\dalltype[4]{\ma{(\forall\ (#1\ \dotted{#2}\ #3)\ #4)}}
+
+\newcommand\starred[1]{\ma{#1^*}}
+
+% terms
+\newmeta\x{x}
+\newmeta\p{p}
+\newmeta\n{n}
+\newmeta\b{b}
+
+\newttop\zerop{zero?}
+\newttop\inc{inc}
+\newttop\dec{dec}
+
+\newttop\cfix{fix}
+\newttop\cif{if}
+\newttop\tru{\#t}
+\newttop\fls{\#f}
+
+\newttop\eqv{=}
+\newttop\plus{plus}
+\newttop\minus{minus}
+\newttop\mult{mult}
+
+\newttop\cinst{@}
+
+\newttop\ccons{cons}
+\newttop\cnull{null}
+\newttop\ccar{car}
+\newttop\ccdr{cdr}
+\newttop\cnullp{null?}
+\newttop\clist{list}
+
+\newttop\capply{apply}
+\newttop\clift{map}
+\newttop\cany{ormap}
+\newttop\call{andmap}
+
+\newttop\cerror{error}
+
+\newcommand\ESOPabs[3]{\ma{(\lambda\ ([#1 : #2])\ #3)}}
+\newcommand\ESOPcomb[2]{\ma{(#1\ #2)}}
+\newcommand\tyabs[2]{\ma{(\Lambda\ (#1)\ #2)}}
+\newcommand\tcomb[2]{\ma{(\cinst\ #1\ #2)}}
+\newcommand\eif[3]{\ESOPcomb{\cif}{#1\ #2\ #3}}
+\newcommand\efix[1]{\ESOPcomb{\cfix}{#1}}
+
+\newcommand\mabs[3]{\ma{(\lambda\ (\overvec{[#1 : #2]})\ #3)}}
+\newcommand\mcomb[2]{\ESOPcomb{#1}{\overvec{#2}}}
+\newcommand\mtabs[2]{\tyabs{\overvec{#1}}{#2}}
+\newcommand\mtcomb[2]{\tcomb{#1}{\overvec{#2}}}
+
+\newcommand\econs[3]{\ma{(\ccons_{#1}\ #2\ #3)}}
+\newcommand\enull[1]{\ma{\cnull_{#1}}}
+\newcommand\ecar[1]{\ESOPcomb{\ccar}{#1}}
+\newcommand\ecdr[1]{\ESOPcomb{\ccdr}{#1}}
+\newcommand\enullp[1]{\ESOPcomb{\cnullp}{#1}}
+
+\newcommand\lerror[0]{\ma{\cerror_{\text{L}}}}
+
+% typing judgments
+\newcommand\tvalid[2]{\ma{#1 \vdash #2}}
+\newcommand\dtvalid[2]{\ma{#1 \mathbin{\triangleright} #2}}
+\newcommand\ifnotempty[3]{\if #1 \@empty #2 \else #3 \fi}
+\newcommand\comma[1]{\ifnotempty{#1}{,}{}}
+\newcommand\ESOPhastype[5]{\ensuremath{#1 \comma{#1} #2 \comma{#2} #3 \vdash #4 \mathbin{:} #5}}
+\newcommand\hasftype[5]{\ensuremath{#1, #2, #3 \vdash #4 \mathbin{:} #5}}
+\newcommand\hasfdtype[5]{\ma{#1, #2, #3 \vdash #4 \mathbin{\triangleright} #5}}
+
+% contexts
+\newcommand\hole[0]{\ma{[\,]}}
+
+\newcommand\inctx[2]{\ma{#1[#2]}}
+\newcommand\inE[1]{\inctx{\E{}}{#1}}
+
+% reductions
+\newcommand\red{\hookrightarrow}
+\newcommand\reds{\red^*}
+
+\renewcommand\overvec[2][\relax]{\vbox{\mathsurround=0pt\ialign{##\hfil&&\hfil##\crcr
+  \rightarrowfill&&$\scriptstyle{#1}$\crcr
+  \noalign{\nointerlineskip}$\hfil\displaystyle{#2}\hfil$&&\crcr}}}
+
+\newcommand\set[1]{\ma{\{#1\}}}
+\newcommand\setcomp[2]{\ma{[ #1 \ |\ #2 ]}}
+\newcommand{\ext}[3]{\ma{#1[#2 \mapsto #3]}}
+\newcommand{\mext}[3]{\ma{#1[\overvec{#2 \mapsto #3}]}}
+\newcommand{\subst}[3]{\ma{#1[#2 \mapsto #3]}}
+\newcommand{\msubst}[3]{\ma{#1[\overvec{#2 \mapsto #3}]}}
+
+\newrmop\appears{appears}
+\newrmop\free{free}
+\newrmop\error{error}
+\newrmop\dom{dom}
+
+\newcommand\tprim[1]{\ma{\delta_{\t{}}(#1)}}
+
+\newitop\transdots{td}
+
+\newcommand\ttransdots[0]{\ma{\transdots_{\t{}}}}
+\newcommand\td[3]{\ma{\ttransdots(#1, #2, #3)}}
+\newcommand\tddef[1]{\td{#1}{\tb{}}{\overvec[m]{\tb{k}}}}
+
+\newcommand\etransdots[0]{\ma{\transdots_{\e{}}}}
+\newcommand\etd[3]{\ma{\etransdots(#1, #2, #3)}}
+\newcommand\etddef[1]{\etd{#1}{\tb{}}{\overvec[m]{\tb{k}}}}
+
+\newcommand\xtransdots[0]{\ma{\transdots_{\x{}}}}
+\newcommand\xtd[4]{\ma{\xtransdots(#1, #2, #3, #4)}}
+\newcommand\xtdnew[2]{\ma{\xtd{#1}{\tb{}}{\overvec[m]{\tb{k}}}{#2}}}
+\newcommand\xtddef[1]{\xtdnew{#1}{\X{}}}
+
+\newcommand\dtransdots[0]{\ma{\transdots_{d}}}
+\newcommand\dtd[4]{\ma{\dtransdots(#1, #2, #3, #4)}}
+\newcommand\dtddef[1]{\dtd{#1}{\tb{}}{\overvec[m]{\tb{k}}}{\X{}}}
+
+\newitop\substdots{sd}
+\newcommand\sd[4]{\ma{\substdots(#1, #2, #3, #4)}}
+\newcommand\sddef[1]{\ma{\substdots(#1, \a{r}, \t{r}, \tb{})}}

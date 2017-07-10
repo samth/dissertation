@@ -1,0 +1,388 @@
+{
+\section{Soundness}
+
+Before we can prove that our migration transformation is sound, we
+must first define what soundness means for a partially typed system.
+It cannot mean absence of runtime errors, since not all modules are
+necessarily typed.  All we can say instead is that the \emph{typed}
+modules do not go wrong.
+
+\subsection{Soundness for Mixed Programs}
+\renewcommand\tau{a}
+
+Soundness for interlanguage migration is a relation
+between the program before and after migration.
+  Intuitively, this relation states that the two programs
+agree when they both produce values and that the typed module never
+produces a type error at runtime.  We say that a program $P$ with exactly one typed module
+named $a$, is \emph{partially typed at $a$}, or simply \emph{partially
+  typed} when the name of the typed module is not relevant.
+
+\begin{definition}[Soundness]
+  $\related{P}{Q}$, where $Q$ is partially typed at $a$ iff:
+  \begin{enumerate}
+  \item If $P \dlsreduces v$ then there exists $v'$ where $Q \dlsreduces v'$ with $\similar{v}{v'}$ or $Q
+    \dlsreduces \blame{g}$ with $g \neq \tau$.
+  \item If $P \dlsreduces \blame{h}$ then there exists $g$ where $Q \dlsreduces \blame{g}$
+    with $g \neq \tau$.
+  \item If $P$ reduces forever, then $Q$ reduces forever or
+    there exists $g$ where $Q \dlsreduces \blame{g}$
+    with $g \neq \tau$.
+  \end{enumerate}
+\end{definition}
+
+\noindent
+This definition relies on the \emph{similarity} relation $\similar{v}{v'}$, which 
+states that $v'$ is the same as $v$, with the possible addition of
+types, contracts, and casts.
+\begin{figure}
+$$
+\begin{array}{c}
+\inferrule[Programs]{\overline{\similar{M}{M'}} \\
+  \similar{e}{e'}}{\similar{\overline{M}\ e}{\overline{M'}\ e'}} \vspace*{4mm}\\
+\inferrule[Modules]{}{\similar{ \modu{f}{e}}{ \modu{f}{e} }}\\
+\similar{ \modu{f}{e} }{\mc{f}{c}{e}} \vspace{1mm} \\
+\inferrule{\similar e {e'}}{\similar{ \modu{f}{e} }{\mt{f}{t}{e'}}} \vspace{4mm} \\
+\inferrule[Expressions]{}{\similar x  x} \qquad {\similar f f} \qquad {\similar n n} \vspace{1mm} \\
+\inferrule{\similar {\e{}}{ e'}}
+{\similar{\e{}}{  \cast{c}{f}{e'}}} \qquad
+\inferrule{\similar{\e1}{\e1'} \\ \similar{\e2}{\e2'}}{\similar{\comb{\e1}{\e2}}
+  {\comb{\e1'}{\e2'}}} \vspace{1mm} \\
+\inferrule{\similar e e'}{\similar{\dlsabs{x}{e}}{\dlsabs{x}{e'}}} \qquad
+\inferrule{\similar e e'}{\similar{\dlsabs{x}{e}}{\Tabs{x}{t}{e'}}} \vspace{1mm} \\
+\inferrule{\similar{\e1}{\e1'} \\ \similar{\e2}{\e2'} \\\similar{\e3}{\e3'}}
+{\similar{\ifz {e_1} {e_2} {e_3}}{\ifz {e_1'} {e_2'} {e_3'}}} \vspace{4mm}\\
+
+\inferrule[Contexts]{\similar{e}{e'} \Rightarrow \similar{E[e]}{E'[e']}}{\similar{E}{E'}}
+\end{array}
+$$
+\caption{Similarity} \label{fig:similarity}
+\end{figure}
+In figure~\ref{fig:similarity}, this relation is defined formally and
+extended to modules and to programs.  For programs,
+$\similar{P}{Q}$ states that $P$ and $Q$ are syntactically identical,
+ignoring casts, contracts and types.  
+
+We say that a system for typed migration is {\it sound} if
+the migrated program is always in the $\trianglerighteq$ relation to
+the original program.  For the $MT$ transformation, this requires that
+every element of $MT(P)$ is related to $P$.
+
+This captures our intuition as to how typed migration should work:
+that once we have migrated, we have proven the absence of errors in
+the typed module.  Further, if we get an answer, it is related to the
+original answer.  Since our reduction system tracks where errors occur, we are
+able to express this statement formally.
+
+\subsection{Soundness of our system}
+
+Proving soundness for our system is a multi-step process.  First, we
+establish that the  system resulting from the transformation agrees
+with the original one, when 
+errors are ignored.  This is established through a simple simulation relation
+between programs.  Second, we prove that programs in $MT(P)$ never
+blame the typed module. 
+
+For the first of these steps, we again make use of the similarity property
+mentioned above and defined in figure~\ref{fig:similarity}.
+This relation between an untyped program (respectively, module or
+expression) and a partially typed one, states syntactically that the
+two programs $P$ and $Q$ are similar, written
+$\similar{P}{Q}$, if they are identical ignoring contracts, types
+and casts.
+
+Similarity satisfies three lemmas:
+
+\begin{lemma}
+  If $\similar{P}{Q}$ and $P \dlsreduces w$ and $Q \dlsreduces w'$ then $\similar{w}{w'}$.
+\end{lemma}
+
+\begin{lemma}
+  If $\similar{P}{Q}$ and $P$ reduces forever then $Q$ reduces
+  forever or $Q \dlsreduces \blame{f}$ for some $f$.
+\end{lemma}
+
+\begin{lemma}
+  If $\similar{P}{Q}$ and $P \dlsreduces \blame{f}$ for some $f$ then $Q
+  \dlsreduces \blame{g}$ for some $g$.\end{lemma}
+
+\noindent\textbf{Proof Sketch}
+These three lemmas all follow from similar simulation arguments.  If
+$\similar{e_1}{e_2}$, then there are three possibilities:
+\begin{enumerate}
+\item $e_2 = E[\cast{c}{f}{v}]$  Then either $e_2 \rightarrow
+  \blame{f}$ or $e_2 \rightarrow e_2'$ where $\similar{e_1}{e_2'}$.
+  This can be seen by simple inspection of the reduction rules for
+  casts.
+\item $e_2 = E[\comb{\cast{\barrcnt{c_1}{c_2}}{f}{l}}{w}]$.  Then $e_2
+  \rightarrow e_2'$ and $\similar{e_1}{e_2'}$
+\item $e_1 = E[r_1]$ and $e_2 = E'[r_2]$ where $\similar{r_1}{r_2}$
+  and $\similar{E}{E'}$.  Then $r_1
+  \rightarrow r_1'$ and $r_2 \rightarrow r_2'$ where
+  $\similar{r_1'}{r_2'}$ or $r_1 \rightarrow \blame{f}$ and $r_2
+  \rightarrow \blame{g}$.  That the hypothesis holds is true from the
+  definition of similarity and the grammar for $E[]$.  The fact that
+  the redexes reduce to similar terms or to errors can be seen from inspection of
+  the reduction rules where the redex is not a cast or the application
+  of a (blessed arrow) cast to a value.
+
+  Additionally, by the compositionality of similarity, placing
+  similar values into similar contexts produces similar terms.
+  Therefore, $\similar{E[r'_1]}{E'[r'_2]}$.
+\end{enumerate}
+Given this, similarity is consistently maintained by reduction, which
+is all we need for the three lemmas. \qed
+
+These lemmas are insufficient to establish soundness, since
+they make no claim about who is blamed for an error.  We therefore
+introduce the notion of \emph{valid} expressions to prove that the
+typed module is never blamed.
+
+\paragraph{Validity}
+Validity is a property of \emph{mixed} terms, those that combine code
+from both typed and untyped modules (and the original main
+expression).  Before defining validity, we first present a new type
+system for mixed terms which ensures that  mixed terms use their typed subcomponents
+appropriately. This type system has the judgement
+$$
+\mtypej{e}{t}
+$$
+which states that mixed expression $e$ has type $t$ in program $P$
+and environment
+$\Gamma$.  
+The rules of the type system are given in figure~\ref{fig:mixed-types}.
+Note that untyped terms are not inspected by this judgement---instead,
+their casts are simply trusted.  
+% Validity implies that
+% there are no applications of numbers where the application is labeled
+% with $\tau$, and also that every cast blaming $\tau$ is applied to a
+% term that satisfies that cast.
+
+
+\begin{figure*}[htbp]
+$$
+\inferrule[VT-Var]{}{\mtypej{x}{\Gamma(x)}} \qquad
+\inferrule[VT-Cast]{e \mbox{\ closed}}{\mtypej{\cast{t}{f}{\e{}}}{t}} \qquad
+$$
+$$
+\inferrule[VT-BlessedCast]{}{\mtypej{\cast{\barrcnt{t_1}{t_2}}{f}{v}}{\dlsproctype{t_1}{t_2}}} \qquad
+\inferrule[VT-Int]{}{\mtypej{n}{\dlsint}}
+$$
+$$
+\inferrule[VT-App]{{\mtypej{\e1}{\dlsproctype{t_1}{t_2}}} \\  % \\ separates premises
+                  {\mtypej{\e2}{t_1}}}
+ { {\mtypej {\comb{\e1}{\e2}} {t_2}}} \qquad
+$$
+$$
+\inferrule[VT-If0]{{\mtypej{\e1}{t_1}} \\
+                  {\mtypej{\e2}{t_2}} \\
+                  {\mtypej{\e3}{t_2}}}
+ { {\mtypej {\ifz{\e1}{\e2}{\e3}}{t_2}}}
+$$
+$$
+\inferrule[VT-Abs]{\mtypejg{\Gamma,\hastype{x}{t}}{\e{}}{s}}
+            {\mtypej{\Tabs{x}{t}{\e{}}}{\dlsproctype t s}} 
+$$
+$$
+\inferrule[VT-TypeMod]{\mbox{$\mt{\tau}{t}{e} \in P$}}{\mtypej{\tau^{\tau}}{t}}
+$$
+\caption{Consistency Type System}\label{fig:mixed-types}
+\end{figure*}
+
+There a several rules to note in the type system.  First, the rule
+{\sc VT-Cast} does not ensure that its argument is well-typed.
+Therefore, it applies even where the argument is an untyped term, and
+the cast is protecting the context of the cast from its argument.
+Second, the {\sc VT-BlessedCast} rule is necessary so that blessed
+casts can appear during reduction, even though they are not part of
+the syntax of types.  Third, we allow the typed module to be used
+without a cast in rule {\sc VT-TypeMod}. Such module references are
+still protected from the untyped world, because they are within a
+typed expression.
+
+We now define two important properties of mixed terms.
+
+\begin{definition}
+  A mixed term $e$ is \emph{consistent at $t$ in $P$} iff
+  $\mtypejg{\emptyset}{e}{t}$, or simply \emph{consistent} if there is
+  some $t$ such that $\mtypejg{\emptyset}{e}{t}$. 
+\end{definition}
+\noindent
+Terms may be consistent even if they do not originate in a typed module,
+or even if some of their subterms are not consistent.  For example,
+$\mtypejg{\emptyset}{\cast{\dlsint}{f}{\dlsabs{x}{\comb{3}{x}}}}{\dlsint}$ for
+any $f$ (including $\tau$), even
+though the expression is patently erroneous.
+
+Based on this definition, only some kinds of terms can be consistent:
+typed abstractions, numbers, casts and applications of two consistent
+terms.
+
+\begin{definition}
+  A mixed term $e^f$ is \emph{originally typed in $P^\tau$} iff $f = \tau$.
+\end{definition}
+\noindent
+This definition gives us a handle on those terms that came from the
+original typed module.  These are the terms that must not trigger errors
+during the execution of the program.  No guarantees are made about the
+subterms of originally typed terms, however, in the case where they have a
+different label.
+
+With these definitions, we can define validity, the property that we use for our
+central lemma.  This property ensures both that numbers are
+not in the operator position of a typed application, and that typed
+terms satisfy any immediately surrounding casts.  Maintenance of these
+two properties is sufficient to ensure that $\tau$ is never blamed.  The
+third portion of the definition states that there is always a syntactic
+barrier between consistent and inconsistent portions of the expression,
+with the exception of numbers.  This is the mechanism that is central
+to maintaining the other two during reduction.
+
+\begin{definition}
+  A closed mixed term $e_m$ is \emph{valid in program $P$} where $P$
+  has typed module $a$ iff all of the following hold:
+  \begin{enumerate}
+  \item every originally typed subexpression $d^\tau \in e_m$  is either consistent
+    or of the form ${\comb{\dlsabs{x}{e}}{e'}}^\tau$
+  \item for every subexpression of the form $\cast{t}{\tau}{e}$, $e$
+    is consistent at $t$.
+  \item every consistent term $d \in e_m$ is either a number, a cast, or the
+    immediate subterm of a consistent term or $d = e_m$.
+  \end{enumerate}
+\end{definition}
+
+Note that since the initial main expression $e$ in a program $P$ is
+closed, it is also valid, since it does not contain any
+originally typed subexpression or casts.
+
+\begin{lemma}
+  \label{lem:central}
+  If a mixed term $e_m$ is valid in program $Q \in MT(P)$ (where $Q$
+  has typed module $a$) for
+  some $P$, and $e_m \rightarrow e_m'$ then $e_m'$
+  is valid in program $Q$.  
+\end{lemma}
+
+\noindent\textbf{Proof Sketch}
+This proof proceeds by cases on the reduction rule that takes $e_m$ to
+$e_m'$.  The important cases are {\sc Split}, {\sc Subst}, {\sc
+  TypedSubst} and {\sc LookupTyped}.  We show two of these here.
+
+Consider case {\sc Split}.  Then $r =
+{\comb{\cast{\barrcnt{c_1}{c_2}}{g}{v}}{w}}^f$ and $r' =
+\cast{c_2}{g}{\comb{v}{\cast{c_1}{f}{w}}^f}$.  We consider the three
+components of validity in turn.
+\begin{enumerate}
+\item Originally-typed
+  subexpressions of $r'$ occur only in $v$ and $w$, or if the
+  resulting application has label $\tau$ (that is, that $f = \tau$). 
+
+  If $v$ or $w$ contain
+  originally typed subexpression, these subexpressions must have been
+  originally typed in $r$, and so by
+  hypothesis they are still consistent.  
+
+  Since $v$ is the argument to a blessed function cast, it must be an
+  abstraction, and therefore the application satisfies condition 1 (if
+  $f = a$).
+
+  If the redex is part of
+  a larger originally typed expression, then $r$ must have been consistent, and
+  must have had type $c_2$.  But $\mtypejg[Q]{\emptyset}{r'}{c_2}$, so this
+  property is maintained. 
+
+
+\item  Consider first the inner cast.
+  If $w$ is originally typed, then it must have been consistent (since the only
+  other possibility is not a value).  Therefore, the whole application
+  must have been consistent, and thus $\mtypejg[Q]{\emptyset}{w}{c_1}$, which is
+  precisely the desired type.  
+
+If $g = \tau$, then we must also show that
+$\mtypejg[Q]{\emptyset}{{\comb{v}{\cast{c_1}{f}{w}}^f}}{c_2}$. But then by
+assumption, $\mtypejg[Q]{\emptyset}{v}{\dlsproctype{c_1}{c_2}}$ and
+$\cast{c_1}{f}{w}$ trivially has type $c_1$.
+
+If $r$ is the argument to a cast, we merely
+must show that the type is preserved by reduction.  But the original
+type of $r$ must have been $c_2$, which is also the type of $r'$.
+
+
+\item Both casts trivially satisfy this case.  Thus we have to
+  consider $v$, $w$, and the application.  Both the application and
+  $w$ are immediate arguments to a cast.  If $v$ is consistent, then it
+  must be been a typed abstraction, since it is the argument of a
+  blessed arrow contract, and untyped abstractions are not consistent.
+  If it is a type-annotated abstraction, it must have label $\tau$,
+  as required by the grammar.
+  Thus, by hypothesis, it must satisfy its cast, and have type
+  $\dlsproctype{c_1}{c_2}$.  Therefore, since the operand is a cast to
+  $c_2$, $\mtypejg{}{\comb{v}{\cast{c_1}{f}{w}}}{c_2}$.
+\end{enumerate}
+This concludes the case.  
+
+Consider case {\sc Subst}. Then $r = \comb{\dlsabs{x}{e}}{v}$ and $r'
+= [v/x]e$.  We again consider the three components of validity.
+First, note that references to $x$ in $e$ cannot be either originally
+typed or part of a consistent expression (without an intervening
+cast), since $x$ is bound by an untyped abstraction.
+\begin{enumerate}
+\item    First, any
+  originally typed and consistent expressions in $v$ remain so in
+  $r'$.  This leaves the originally typed expressions in $e$.  Choose
+  one of these, $d^a$.  By hypothesis, either \mtypej{d^a}{t} or $d^a
+  = \comb{\dlsabs{y}{e_1}}{e_2}$. In the former case, $x$
+  is not in the free variables of $d^a$, since it cannot occur outside
+  of a cast, and {\sc VT-Cast} requires that the cast argument be
+  closed. Thus, $[v/x]d^a = d^a$.  In the latter case, $[v/x]d^a =
+  \comb{\dlsabs{y}{[v/x]e_1}}{[v/x]e_2}$ which is of the appropriate
+  form.  
+\item By a similar argument, if $e$ has a subexpression of the form
+  $\cast{t}{a}{e'}$, then $e'$ is consistent and $[v/x]e' = e'$.
+\item  First, note that neither $v$ nor $e$ is consistent unless they are numbers or
+  casts, since they are not  immediate subterms of  consistent terms.
+  Thus consistent subterms of $v$ and $e$ that are not numbers or
+  casts must be proper subterms.  The consistent subterms of $v$ are
+  preserved in $r'$.  Further, since no reference to $x$ in the body
+  of $e'$ is consistent, the consistent subterms of of $e$ are
+  maintained. 
+\end{enumerate}
+
+
+This concludes the case.  The others are proved in a similar way.  \qed
+
+Given this lemma, we can now show that blame is never assigned to the
+typed module.
+
+\begin{lemma}[MT never blames the typed module]
+  If $P^\tau \in MT(P)$, and $P^\tau \dlsreduces \blame{g}$ then $g \neq
+  \tau$.
+  \label{lem:no-blame}
+\end{lemma}
+
+\noindent\textbf{Proof Sketch}
+The only way we could ever reduce to \blame{\tau} is if 
+${\comb{n}{v}}^\tau$ is the redex or if a cast fails and blames $\tau$.
+However, since the main expression is originally untyped, and thus
+valid, and remains valid by lemma~\ref{lem:central}, this is impossible. \qed
+
+We can now conclude the main theorem of this chapter.
+
+\begin{theorem}[Soundness of MT]
+\label{thm:dlsmain}
+If $P^\tau \in MT(P)$ then $\related{P}{P^\tau}$.
+\end{theorem}
+
+\noindent\textbf{Proof Sketch}
+First, note that if $\ttgproves{e}{t}{e'}$ then
+$\similar{e}{e'}$.  Therefore, if $P^\tau \in MT(P)$, then
+$\similar{P}{P^\tau}$. 
+% 
+From this, if $P \dlsreduces v$ and $P^\tau \dlsreduces v'$ then
+$\similar{v}{v'}$. 
+Similarly, if $P$ reduces forever, then $P^\tau \not\dlsreduces v$ for any
+$v$.  Therefore, lemma~\ref{lem:no-blame}, stating that if an error occurs,
+the blame is assigned to one of the untyped modules, suffices for the
+proof. \qed
+
+}

@@ -1,0 +1,70 @@
+$$\begin{array}{lcl}
+  \etddef{\tcomb{\e{}}{\overvec[n]{\t{j}}\ \dotted{\t{r}}_{\tb{}}}} & = & 
+    \tcomb{\etddef{\e{}}}{\overvec[n]{\tddef{\t{j}}}\ \overvec[m]{\subst{\tddef{\t{r}}}{\tb{}}{\tb{k}}}} \\
+  \etddef{(\lambda\ (\overvec[n]{[\x{j} : \t{j}]} \rdot [\x{r} : \dotted{\t{r}}_{\tb{}}])\ \e{})} & = &
+    (\lambda\ (\overvec[n]{[\x{j} : \tddef{\t{j}}]}\ \overvec[m]{[\x{k} : \t{r}'[\tb{} \mapsto \tb{k}]]})\ \xtdnew{\e{}}{[\x{r} \mapsto \overvec[m]{\x{k}}]}) \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\t{r}' = \tddef{\t{r}}$}
+  } \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{and $\overvec[m]{\x{k}}$ fresh}
+  } \\
+  \\
+  \xtddef{\tcomb{\e{}}{\overvec[n]{\t{j}}\ \dotted{\t{r}}_{\tb{}}}} & = & 
+    \tcomb{\xtddef{\e{}}}{\overvec[n]{\tddef{\t{j}}}\ \overvec[m]{\subst{\tddef{\t{r}}}{\tb{}}{\tb{k}}}} \\
+  \xtddef{(\lambda\ (\overvec[n]{[\x{j} : \t{j}]} \rdot [\x{r} : \dotted{\t{r}}_{\tb{}}])\ \e{})} & = &
+    (\lambda\ (\overvec[n]{[\x{j} : \tddef{\t{j}}]}\ \overvec[m]{[\x{k} : \t{r}'[\tb{} \mapsto \tb{k}]]})\ \xtdnew{\e{}}{\X{}[\x{r} \mapsto \overvec[m]{\x{k}}]}) \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\t{r}' = \tddef{\t{r}}$}
+  } \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{and $\overvec[m]{\x{k}}$ fresh}
+  } \\
+  \xtddef{\ESOPcomb{\capply}{\e{}\ \overvec[n]{\e{j}}\ \e{r}}} & = &
+    \text{case $\dtddef{\e{r}}$ of}
+    \begin{array}[t]{lcl}
+      \e{r}' & \Rightarrow & \ESOPcomb{\capply}{\e{}'\ \overvec[n]{\e{j}'}\ \e{r}'} \\
+      \overvec[m]{\e{k}} & \Rightarrow & \ESOPcomb{\e{}'}{\overvec[n]{\e{j}'}\ \overvec[m]{\e{k}}}
+    \end{array} \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\e{}' = \xtddef{\e{}}$}
+  } \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{and $\overvec[n]{\e{j}'} = \overvec[n]{\xtddef{\e{j}}}$}
+  } \\
+  \xtddef{\ESOPcomb{\cany}{\e{}\ \e{r}}} & = & \\
+  \multicolumn{3}{l}{\hspace*{4em}
+    \text{case $\dtddef{\e{r}}$ of}
+    \begin{array}[t]{lcl}
+      \e{r}' & \Rightarrow & \ESOPcomb{\cany}{\e{}'\ \e{r}'} \\
+      \overvec[m]{\e{k}} & \Rightarrow &
+      \eif{\ESOPcomb{\subst{\e{}'}{\tb{}}{\tb{k_1}}}{\e{k_1}}}
+          {\tru}
+          {\eif{\text{---}}{\text{---}}
+               {\ESOPcomb{\subst{\e{}'}{\tb{}}{\tb{k_m}}}{\e{k_m}}}} \\
+    \end{array}
+  } \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\e{}' = \xtddef{\e{}}$}
+  } \\
+  \\
+  \dtddef{\ESOPcomb{\clift}{\e{}\ \e{r}}} & = &
+    \text{case $\dtddef{\e{r}}$ of}
+    \begin{array}[t]{lcl}
+      \e{r}' & \Rightarrow & \ESOPcomb{\clift}{\e{}'\ \e{r}'} \\
+      \overvec[m]{\e{k}} & \Rightarrow & 
+      \overvec[m]{\ESOPcomb{\subst{\e{}'}{\tb{}}{\tb{k}}}
+                       {\e{k}}}
+    \end{array} \\
+  \multicolumn{3}{l}{\hspace*{2em}
+      \text{where $\e{}' = \xtddef{\e{}}$}
+  } \\
+  \dtddef{\x{}} & = & \X{}(\x{}) \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\x{} \in \dom(\X{})$}
+  } \\
+  \dtddef{\x{}} & = & \x{} \\
+  \multicolumn{3}{l}{\hspace*{2em}
+    \text{where $\x{} \not \in \dom(\X{})$}
+  } \\
+  \end{array}$$

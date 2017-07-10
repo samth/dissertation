@@ -1,0 +1,83 @@
+\begin{schemeregion}
+
+\section{Types for Variable-Arity Functions}
+\label{sec:intro}
+
+For the past two years, Tobin-Hochstadt and Felleisen~\cite{thf:dls06,thf:popl08} have been
+ developing Typed Scheme, an explicitly and statically typed sister
+ language of PLT Scheme~\cite{mf:mzscheme}. In many cases, Typed Scheme
+ accommodates existing Scheme programming idioms as much as possible.  One
+ remaining obstacle concerns functions of variable arity. Such functions
+ have a long history in programming languages, especially in LISP and
+ Scheme systems where they are widely used for a variety of purposes,
+ ranging from arithmetic operations to list processing. In response, we have
+ augmented Typed Scheme so that its type system can cope
+ with variable-arity functions of many kinds.
+
+Some variadic functions in Scheme are quite simple. For example, the
+ function \scheme{+} takes any number of numeric values and produces their
+ sum.  This function, and others like it, could be typed in a system that
+ maps a variable number of arguments into a homogeneous data
+ structure.\footnote{Languages like C, C++, Java, and C\# support
+ such variable-arity functions.} Other variable-arity functions,
+ however, demand a more sophisticated approach than collecting
+ the extra arguments in such a fashion.
+
+Consider Scheme's \scheme{map} function, which takes a function as input as well
+ as an arbitrary number of lists.  It then applies the function to the
+ elements of the lists in a pointwise fashion.  The function must therefore
+ take precisely as many arguments as the number of lists provided.  For
+ example, if the \scheme|make-student| function consumes two arguments, a name as a string and
+ a number for a grade, then the expression
+\begin{schemedisplay}
+(map make-student (list "Al" "Bob" "Carol") (list 87 98 64))
+\end{schemedisplay} 
+ produces a list.  We refer to variable-arity functions such as
+ \scheme|+| and \scheme|map| as having \emph{uniform} and
+ \emph{non-uniform} polymorphic types, respectively.
+
+For Typed Scheme to be useful to working programmers, its type system must
+ handle this form of polymorphism.  Further, although \scheme{map} and \scheme{+}
+ are part of the standard library, language implementers cannot arrogate
+ the ability to abstract over the arities of functions. Scheme programmers
+ routinely define such functions, and if they wish to refactor their
+ Scheme programs into Typed Scheme, our language must allow such
+ function definitions. 
+
+Of course, our concerns are relevant beyond the confines of Scheme.
+Variable-arity functions are also useful in statically typed
+languages, but are barely supported because of a lack of pragmatic
+approaches.  Even the standard libraries of highly expressive typed
+functional languages contain functions that would benefit from
+non-uniform variable-arity, but instead are defined via copying of
+code.  For example, the SML Basis Library~\cite{sml-basis} includes
+the \Verb|ARRAY| and \Verb|ARRAY2| signatures, which include functions
+that differ only in arity.  The GHC standard library~\cite{manual:ghc}
+also features close to a dozen families of functions (such as
+\Verb|zip| and \Verb|zipWith|) defined at a variety of arities.  We
+conjecture that if their type systems provided variable-arity
+polymorphism, Haskell and ML programmers would routinely define such
+functions, too.
+
+In this paper, we present the first pragmatic and comprehensive approach
+ to variable-arity polymorphism: its design, implementation, and evaluation.
+% new from MF
+Our new version of Typed Scheme can assign types to hundreds of
+programmer-introduced function definitions with variable arities,
+something that was simply impossible before. Furthermore, we can now
+type check library functions such as \scheme|map| and
+\scheme|fold-left| without resorting to special tricks or duplication.
+
+ In the next two sections, we describe
+ Typed Scheme in general terms and then present the type system for
+ variable-arity functions.  In
+ section \ref{sec:formal}, we introduce a formal model of our
+ variable-arity type system.  % In section \ref{sec:infer}, we describe how
+% our innovations are integrated with the rest of Typed Scheme and sketch a
+% local type inference algorithm.
+ In section \ref{sec:eval} we present
+ preliminary results of our evaluation effort with
+ respect to the PLT Scheme code base and the limitations of our system.  In section
+ \ref{sec:related} we discuss related work.
+
+\end{schemeregion}

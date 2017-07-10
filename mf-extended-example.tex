@@ -1,0 +1,95 @@
+\begin{schemeregion}
+
+\section{An Extended Example}
+
+To demonstrate the utility of refinement types as provided by Typed
+Scheme,
+ we present an extended example, tackling the problem of form
+validation.  One important problem in form validation is avoiding SQL
+injection attacks, where a piece of user input is allowed to contain
+an SQL statement, and passed directly to the database.  A simple is
+example is the query
+
+\begin{schemedisplay}
+(string-append "SELECT * FROM users WHERE name = '" user-name "';")
+\end{schemedisplay}
+\noindent
+If \scheme|user-name| is taken directly from user input, then it might
+contain the string \scheme|"a' or 't'='t"|, resulting in an query that
+returns the entire contents of the \verb|users| table.  More damaging
+queries can be constructed, with data loss a significant
+possibility~\cite{xkcd}.  
+
+One common solution for avoiding this problem is sanitizing user input
+with escape characters.  Unfortunately, sanitized input, like
+unsanitized input, is simply a string.  Therefore, we use
+refinement types to statically verify that only validated input
+ is passed through to the database.  This requires two key
+pieces: the predicate, and the final consumer.
+
+The predicate is a Typed Scheme function that determines if a
+string is acceptable as input to the database:
+
+\begin{schemedisplay}
+(: sql-safe? (String -> Boolean))
+(define (sql-safe? s) ELIDED)
+\end{schemedisplay}  
+
+No special type system machinery is required to write and use such a
+predicate.  One more step is needed, however, to turn this predicate
+into a refinement type:
+
+\begin{schemedisplay}
+(declare-refinement sql-safe?)
+\end{schemedisplay}
+
+\noindent
+This declaration puts the function \scheme|sql-safe?| 
+into the refinement environment $\Sigma$ in the formalization of refinement types,
+with the addition that it changes the type of \scheme|sql-safe?| to be
+a predicate for \scheme|(Refinement sql-safe? String)|.  
+
+With this refinement type, we can specify the desired type of our
+query function:
+
+\begin{schemedisplay}
+(: query ((Refinement sql-safe? String) -> (Listof Result)))
+(define (query user-name)
+  (run-query
+   (string-append 
+     "SELECT * FROM users WHERE name = '" user-name "';")))
+\end{schemedisplay}
+\noindent
+Since \scheme|(Refinement sql-safe? String)| is a subtype of
+\scheme|String|, \scheme|user-name|  can be used directly as an
+argument to \scheme|string-append|.  
+
+We can also write a \scheme|sanitize| function that performs the
+necessary escaping, and use the \scheme|sql-safe?| function and
+refinement types for static and dynamic verification:
+
+\begin{schemedisplay}
+(: sanitize (String -> (Refinement sql-safe? String)))
+(define (sanitize s)
+  (define s* (string-map escape-char s))
+  (if (sql-safe? s*) 
+      s*
+      (error "escape failed")))
+\end{schemedisplay}
+\noindent
+The only function that is added to the trusted computing
+base is the definition of \scheme|sql-safe?|, which can be provided by
+the database vendor.  Everything else is up to the programmer.
+
+\paragraph{Alternative Solutions}
+
+Another solution to this problem, common in other languages, would have \scheme|sanitize| be
+defined in a different module, with \scheme|SQLSafeString| as an
+opaque exported type.  Unfortunately, this requires using an accessor
+whenever a \scheme|SQLSafeString| is used in a context that expects a
+string (such as \scheme|string-append|).  The use of our style  of refinement types
+avoids both the dynamic cost of wrapping in a new type, as well as the
+programmer burden of managing these wrappers and their corresponding
+accessors.  
+
+\end{schemeregion}

@@ -1,0 +1,218 @@
+\newcommand\evenp{\ma{\mathit{even?}}}
+\newcommand\oddp{\ma{\mathit{odd?}}}
+\newcommand\rhastyeff[4]{\hastype{\Delta,#1 \vdash_{r} #2}{#3 ; #4}}
+\newcommand\dsubeff[2]{\ma{\Sigma \vdash #1 \subtypesym_{?} #2}}
+\newcommand\dsubtype[2]{\ma{\Sigma \vdash_{r} #1 \subtypesym #2}}
+\newcommand\dghastyeff[3]{\ma{\Sigma,\rhastyeff{\Gamma}{#1}{#2}{#3}}}
+
+\newcommand\RFhastyeff[4]{\hastype{#1 \vdash #2}{#3 ; #4}}
+
+\newcommand\er[1]{\ma{\mathrm{erase}_{\t{}}({#1})}}
+\newcommand\erl[1]{\ma{\mathrm{erase}_{\lambda}({#1})}}
+\newcommand\erp[1]{\ma{\mathrm{erase}_{\p{}}({#1})}}
+\newcommand\erg[1]{\ma{\mathrm{erase}_{\Gamma}({#1})}}
+\newcommand\erj[1]{\ma{\mathrm{erase}_{\vdash}({#1})}}
+
+\newcommand\Rproctype[3]{\ma{(#1 \stackrel{#3}{\to} #2)}}
+\newbfop\rsym{R}
+\newcommand{\RR}[2]{\ma{({\rsym}~{#1}~{#2})}}
+
+\newcommand{\rc}[1]{\ma{\RR{\cc{}}{#1}}}
+\newcommand{\rct}{\rc{\t{}}}
+
+\begin{schemeregion}
+
+Refinement types are a powerful facility for expressing constraints on
+existing types, often beyond what the type checker can statically
+verify.  In Typed Scheme, occurrence typing gives us a simple way to
+add refinement types without involving theorem proving or complex set
+constraints.
+
+  The key idea is that every predicate defines a set,
+which is the values for which that predicate returns \scheme|#t|.  We
+then consider that set as a type---the refinement type corresponding
+to that predicate.  This chapter formalizes this idea, restricted to
+just the predicates \scheme|even?| and \scheme|odd?|.  The second
+portion of this chapter presents an extended example, using refinement
+types to check that form input is safe for use in SQL statements.  
+
+\section{Formalizing Refinements}
+
+
+
+To add refinement types to the \lts\ calculus,
+we extend the grammar with the new type constructor \rct, which
+is the refinement defined by the built-in function \cc{}, which has
+argument type \t{}.  We restrict refinements to built-in functions
+so that any refinement type that can be given to an expression can
+also be given to the value the expression reduces to.
+%
+We then add two new built-in functions, \scheme|even?|, with type
+$$\Rproctype{\num}{\bool}{\RR{\evenp}{\num}}$$
+\noindent
+ and
+\scheme|odd?|, with type
+$$\Rproctype{\num}{\bool}{\RR{\oddp}{\num}}$$
+\noindent
+and the obvious semantics.
+
+
+The subtyping rules for refinements require an additional refinement environment $\Sigma$,
+which specifies those built-ins that may be used as refinements.   Extending the
+existing subtyping rules with this environment is straightforward,
+giving a new judgement of the form \dsubtype{\t1}{\t2}, with the
+subscript $r$ distinguishing this judgement from the earlier
+subtyping judgement.  As an example, the extended version of the {\sc S-Refl} rule is
+$$
+\inferrule{}{\dsubtype{\t{}}{\t{}}}
+$$
+\noindent
+The new rule for refinement types is
+
+
+\[
+\inferrule[]{\cc{} \in \Sigma
+\\
+\dt{\cc{}} = \proctype{\t1}{\t2}{\phih{}}{\sh{}} \\
+\dsubtype{\t1}{\t{}}
+}{
+\dsubtype{\RR{\cc{}}{\t1}}{\t{}}}
+\]
+\noindent
+This rule states that a refinement of type \t1 is a subtype of any
+type that \t1 is a subtype of.  As expected, this means that
+\dsubtype{\rct}{\t{}}. 
+
+The addition of the $\Sigma$ environment to the subtyping judgement requires a
+similar addition to the typing judgement, which now has the form
+\[
+\dghastyeff{\e{}}{\t{}}{\phi{};\s{}}
+\]
+
+This subtyping rule, along with the constants \scheme|even?| and
+\scheme|odd?|, are sufficient to write useful examples.  For
+example, the following function consumes an even-consuming function and a
+number, and uses the function if and only if the number is even.
+
+\begin{exmp}
+\begin{schemedisplay}
+(lambda ([f : ((R even? Number) -> Number)] [n : Number])
+  (if (even? n) (f n) n))
+\end{schemedisplay}
+\end{exmp}
+
+No additional type rules are necessary for this extension.
+Additionally, any expression of type \rct can be used as if it has
+type \t{}, meaning that standard arithmetic operations still work on
+even and odd numbers.  
+
+\section{Soundness}
+
+Proving soundness for the extended system with refinements raises the
+interesting question of what additional errors are prevented by the
+refinement type extension.  The answer is none; no additional
+behavior is ruled out.  This is unsurprising, of course, since the
+soundness theorem from section~\ref{sec:soundness} does not allow the
+possibility of any errors.  But even if errors were added to the
+operational semantics, such as division by zero, none of these errors
+would be prevented by the refinement type system.  Instead, refinement
+types allow the specification and enforcement of types that
+ do not necessarily have any correspondence to the operational
+semantics of the language.  
+
+ We therefore adopt a different proof strategy.  Specifically, we erase
+ the refinement types 
+ and are left with a typeable term, which reduces appropriately. 
+   Given a type in the extended
+ language, we can compute a type without refinement types, simply by
+ erasing all occurrences of \RR{\cc{}}{\t{}} to \t{}.  
+
+The proof of soundness has been done for an earlier formulation of
+occurrence typing, and is presented elsewhere~\cite{mitchfest-submitted}.
+
+
+%, along with its extension to terms
+% ($\mathrm{erase}_{\lambda}$), predicates ($\mathrm{erase}_{\p{}}$),
+% and environments ($\mathrm{erase}_{\Gamma}$).  We also assume the obvious modifications to
+% $\delta_{\t{}}$.
+
+% \begin{figure}
+% \[
+% \begin{tabular}{c}
+% $
+% \begin{array}{l@{\quad =\quad}l}
+% \er{\rct} & \er{\t{}} \\
+% \er{\Rproctype{\t{}}{\s{}}{\t{}'}} &
+% \Rproctype{\er{\t{}}}{\er{\s{}}}{\er{\t{}'}} \\
+% \er{\Rproctype{\t{}}{\s{}}{\bullet}} &
+% \Rproctype{\er{\t{}}}{\er{\s{}}}{\bullet} \\
+% \er{\num} & \num \\
+% \er{\tt} & \tt \\
+% \er{\ff} & \ff \\
+% \er{\top} & \top \\
+% \er{(\usym\ \t{} \dots)} & (\usym\ \er{\t{}} \dots) \vspace{2mm}\\
+
+% \erl{\abs{\x{}}{\t{}}{\e{}}} & \abs{\x{}}{\er{\t{}}}{\erl{\e{}}} \\
+% \erl{\comb{\e1}{\e2}} & \comb{\erl{\e1}}{\erl{\e2}}\\
+% \erl{\cond{\e1}{\e2}{\e3}} & \cond{\erl{\e1}}{\erl{\e2}}{\erl{\e3}}\\
+% \erl{\n{}} & \n{} \\
+% \erl{\cc{}} & \cc{} \\
+% \erl{\b{}} & \b{} \\
+% \erl{\x{}} & \x{} \vspace{2mm}\\
+
+% \erp{\t{\x{}}} & \er{\t{}}_{\x{}} \\
+% \erp{\x{}} & \x{} \\
+% \erp{\bullet{}} & \bullet{} \\
+% \erp{\ttt{}} & \ttt{} \\
+% \erp{\fft{}} & \fft{} \vspace{2mm}\\
+
+% \erg{{\x{} : \t{}}, \ldots} & {\x{} : \er{\t{}}},
+% \ldots \vspace{2mm}\\
+
+% \erj{\ghastyeff{\e{}}{\t{}}{\p{}}} &
+% \RFhastyeff{\erg{\Gamma}}{\erl{\e{}}}{\er{\t{}}}{\erp{\p{}}} \\
+%  \end{array}
+%  $
+%  \end{tabular}
+%  \]
+%  \caption{Erasure Metafunctions}
+%  \label{fig:erase}
+%  \end{figure}
+
+% With these definitions in hand, we can conclude the necessary lemmas
+% for proving soundness.  
+
+% \begin{lemma}[Typing Erased Terms]
+% If \dghastyeff{\e{}}{\t{}}{\p{}}, then
+% \erj{\ghastyeff{{\e{}}}{{\t{}}}{{\p{}}}}. 
+% \end{lemma}
+
+% \begin{proof}
+% By induction on the derivation of \dghastyeff{\e{}}{\t{}}{\p{}}. \qed
+% \end{proof}
+
+% \begin{lemma}[Reducing Erased Terms]
+% If \reduce{\e1}{\e2}, then \reduce{\erl{\e1}}{\erl{\e2}}.
+% \end{lemma}
+
+% \begin{proof}
+% By induction on the derivation of \reduce{\e1}{\e2}. \qed
+% \end{proof}
+
+% We can combine these lemmas with our earlier preservation and progress
+% lemmas to conclude soundness.  
+
+% \begin{theorem}[Soundness with Refinement Types]% for the Conservative System]
+%   If \dghastyeff{\e{}}{\t{}}{\p{}}, with \e{} closed, using only the rules in figure~\ref{f:type},
+%   and \t{} is a base type or a refinement of a base type, one of the following holds 
+%   \begin{enumerate}
+%     \item \e{} reduces forever, or
+%     \item \reduces{\e{}}{\vv{}} where 
+% \erj{\RFhastyeff{\ }{{\vv{}}}{{\s{}}}{{\p{}'}}} and  \subtype{\er{\s{}}}{\er{\t{}}} and \subeff{\erp{\p{}'}}{\erp{\p{}}}.
+%   \end{enumerate}
+% \end{theorem}
+
+
+
+
+\end{schemeregion}

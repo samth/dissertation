@@ -1,0 +1,96 @@
+\documentclass[natbib]{sigplanconf}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{slatex}
+\usepackage{fancyvrb}
+\usepackage{bcprules}
+\usepackage{mmm}
+\usepackage{mathpartir}
+\usepackage{color}
+
+\input{formal-cmds}
+
+\begin{document}
+
+\begin{figure}
+  \small{\input{formal-figs/syntax}}
+  \caption{\label{fig:syntax}Syntax}
+\end{figure}
+
+\begin{figure}
+  \input{formal-figs/tvalid}
+  \caption{\label{fig:tvalid}Type validity}
+\end{figure}
+
+\begin{figure}
+$$
+\inferrule[TDE-Pretype]{{\tvalid{\D{}}{\dotted{\a{}}}} \\
+                         {\tvalid{\D{} \cup \set{\a{}}}{\t{}}}}
+                        {\dtvalid{\D{}}{\dotted{\t{}}_{\a{}}}}
+$$
+  \caption{\label{fig:tdvalid}Dotted pre-type validity}
+\end{figure}
+
+\begin{figure}
+  $$\begin{array}{c}
+  \inferrule[TD-Var]{\S{}(\x{}) = \dotted{\t{}}_{\a{}}}
+                    {\hasfdtype{\G{}}{\D{}}{\S{}}{\x{}}{\dotted{\t{}}_{\a{}}}} \\
+  \\
+  \inferrule[TD-Lift]{{\hasfdtype{\G{}}{\D{}}{\S{}}{\e{r}}{\dotted{\t{r}}_{\a{}}}} \\
+                      {\hasftype{\G{}}{\D{} \cup \set{\a{}}}{\S{}}{\e{f}}{\funtype{\t{r}}{\t{}}}}}
+                     {\hasfdtype{\G{}}{\D{}}{\S{}}{\ESOPcomb{\clift}{\e{f}\ \e{r}}}{\dotted{\t{}}_{\a{}}}} \\
+  \end{array}$$
+  \caption{\label{fig:type-dots}Type rules for dotted pre-types}
+\end{figure}
+
+\begin{figure}
+  \input{formal-figs/coerce.tex}
+  \caption{\label{fig:coerce}Coercion from uniform variable-arity types}
+\end{figure}
+
+\begin{figure*}
+  \small{\input{formal-figs/type-rules}}
+  \caption{\label{fig:typing}Type rules}
+\end{figure*}
+
+\begin{figure}
+  $$\begin{array}{rcl}
+    \tprim{\eqv{}}   & = & \funtype{\num\ \num}{\bool} \\
+    \tprim{\plus{}}  & = & \funtype{\starred{\num}}{\num} \\
+    \tprim{\minus{}} & = & \funtype{\num\ \starred{\num}}{\num} \\
+    \tprim{\mult{}}  & = & \funtype{\starred{\num}}{\num} \\
+    \tprim{\ccar{}} & = &
+    \malltypesing{\a{}}
+                 {\funtype{\listtype{\a{}}}{\a{}}} \\
+    \tprim{\ccdr{}} & = &
+    \malltypesing{\a{}}
+                 {\funtype{\listtype{\a{}}}{\listtype{\a{}}}} \\
+    \tprim{\cnullp{}} & = &
+    \malltypesing{\a{}}
+                 {\funtype{\listtype{\a{}}}{\bool{}}} \\
+  \end{array}$$
+  \caption{\label{fig:primtypes}Types of primitives}
+\end{figure}
+
+\begin{figure*}
+  \input{formal-figs/substdots}
+  \caption{\label{fig:substdots}Substituting dotted pre-types for dotted variables}
+\end{figure*}
+
+\begin{figure*}
+  \input{formal-figs/td-type}
+  \caption{\label{fig:td-type}Expanding dots in types}
+\end{figure*}
+
+\begin{figure}
+  \small{\input{formal-figs/reductions}}
+  \caption{\label{fig:reducts}Selected Reduction Rules}
+\end{figure}
+
+\begin{figure*}
+  {\small \input{formal-figs/td-expr}}
+  \caption{\label{fig:td-expr}Selected rules for expansion of expressions}
+\end{figure*}
+
+\end{document}

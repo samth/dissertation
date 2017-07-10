@@ -1,0 +1,102 @@
+\begin{schemeregion}
+\section{Macro protocols}
+\label{sect:protocols}
+
+Some language extensions involve not just a single macro definition, but
+a collection of collaborating macros, or one macro whose multiple uses
+collaborate. Those collaborating macros need ways to share information
+at expansion time.
+
+For example, any datatype created with \scheme{define-struct} can be
+recognized and destructured using \scheme{match}, as follows:
+\begin{schemedisplay}
+(define-struct posn (x y))
+
+(define (dist-to-origin p)
+  (match p
+    [(struct posn (a b))
+     (sqrt (+ (sqr a) (sqr b)))]))
+\end{schemedisplay}
+The \scheme{define-struct} macro gives \scheme{match} access to the
+names of \scheme{posn}'s predicate and accessor functions, and
+\scheme{match} uses those names in the expansion of the pattern to
+test the value, extract its contents, and bind the results to the
+pattern variables \scheme{a} and \scheme{b}.
+
+PLT Scheme provides three mechanisms for compile-time communication between macros:
+static bindings, side-effects, and syntax properties. Each mechanism
+fits a particular form of communication.
+
+\subsection{Static binding}
+
+PLT Scheme generalizes \scheme{define-syntax} to bind names to
+arbitrary compile-time data. The definition of the \scheme{posn}
+structure above produces something similar to the following:
+\begin{schemedisplay}
+(begin
+  (define-values (make-posn posn? posn-x posn-y) ELIDED)
+  (define-syntax posn
+    (list #'make-posn
+          #'posn?
+          (list #'posn-x #'posn-y))))
+\end{schemedisplay}
+Despite the use of \scheme{define-syntax}, the definition of
+\scheme{posn} is not a macro, as its value is not a transformer
+procedure. The static information it carries is accessible from other
+macros (such as \scheme{match}) via the \scheme{syntax-local-value}
+procedure.
+
+With static binding, the availability of information is tied to the
+name it is bound to. Static binding also relies on the ability to
+define the name; it cannot attach information to a name that is
+already bound.  Still, static binding is the most common mechanism for
+defining macro protocols in the PLT Scheme libraries, including
+protocols for structs and component
+signatures~\cite{culpepper05units}.
+
+\subsection{Side-effects}
+
+Side-effects are commonly used to provide implicit channels of
+communication between collaborating run-time components. They are just
+as capable of providing such channels at compile time for macros,
+provided the programmer recognizes the difference between ephemeral
+and persistent effects and uses the appropriate technique.
+
+%%% Discuss ``idempotent'' effects, module-id=? effects
+
+% Due to the interactions between side-effects and the compilation
+% process, however, we defer the discussion of side-effects to
+% Section~\ref{sect:syntax:modules}.
+
+\subsection{Syntax properties}
+
+\citet{dhb:sc} define a syntax datatype that extends S-expressions
+with hygienic binding information and source location tracking.
+PLT Scheme adds \emph{syntax properties}, key-value pairs of arbitrary
+associated data, as a way of attaching information to particular
+terms. By default, syntax properties are simply preserved by macros
+and primitive syntactic forms, so protocols defined via syntax
+properties generally do not interfere if they choose distinct
+keys. Accessing information contained in syntax properties requires
+only access to the term that carries the property and the key to the
+property. Syntax properties are available even to observers that
+cannot access the expansion environment (necessary to access static
+bindings and compile-time variables).
+
+For these reasons, syntax properties are well-suited to conveying
+information from macros to code analyzers that examine programs after
+they have been expanded to core Scheme.
+%
+For example, DrScheme's Check Syntax tool examines expanded programs to graphically
+display the program's binding structure.  This should work even when the reference is no longer apparent in the residual program, as with the  expansion of
+\scheme{match}, which uses the information bound to structure name,
+although the structure name does not occur in the expansion. The
+\scheme{match} macro leaves a \scheme{'disappeared-use} syntax
+property on its expansion telling the Check Syntax tool to color the
+occurrence of \scheme{posn} as a reference and connect it to the
+corresponding definition.
+
+Macros can introduce and examine syntax properties in their arguments
+using the \scheme{syntax-property} procedure.
+
+\end{schemeregion}

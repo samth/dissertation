@@ -1,0 +1,125 @@
+\begin{schemeregion}
+
+\section{Evaluation}
+\label{sec:eval}
+
+Mining the extensive PLT Scheme code base
+ provides significant evidence that variable-arity functions are
+frequently defined and used; examining a fair number of examples shows
+that our type system is able to cope with a good portion of
+these definitions and uses.
+
+\subsection{Measurements of Existing Code}
+
+A simple pattern-based search of the code base for definitions of
+ variable-arity functions and uses of certain built-in core functions
+ produces the following:
+\begin{itemize}
+\item There are at least 1761 definitions of variable-arity functions.  
+
+\item There are 488 uses of 
+  \scheme|map|, \scheme|for-each|, \scheme|foldl|, \scheme|foldr|,
+  \scheme|andmap|, and \scheme|ormap| with more than the minimum number
+  of arguments.
+
+\end{itemize}
+ 
+These numbers demonstrate the need for a type system that deals
+ with variable-arity functions. Programmers use those from the core
+ library at multiple arities. Furthermore, programmers define
+ such functions regularly.
+
+It is this kind of inspection of our code base that inspires a careful
+ investigation of the issue of variable-arity functions. We cannot reasonably
+ ask our programmers to duplicate their code or to duplicate type cases
+ just because our type system does not accommodate their utilization of the
+ expressive power of plain Scheme. 
+
+\subsection{Evaluation of Examples}
+
+Simply counting definitions and uses of variable-arity functions is
+ insufficient.  Each definition and use demands a separate inspection in order
+ to validate that our type system can cope with it. This is particularly
+ necessary for function definitions, because our pattern-based search does
+ not indicate whether a definition introduces a uniform or non-uniform
+ variable-arity function. 
+
+\paragraph{Uses} The sample set for uses of variable-arity functions from
+ the core library covers 30 cases, i.e., 10 randomly-chosen example
+ function applications using each of \scheme|map|, \scheme|for-each|, and
+ \scheme|andmap| with at least two list arguments.  For \scheme|map|, we are
+ able to type 9 of 10, for \scheme|for-each| we are able to type 10 of 10,
+ for \scheme|andmap| we are able to type 10 of 10.
+
+In short, our technique is extremely successful for the list-processing
+ functions, checking 29 of the 30 examples.  The one failure is due to the
+ use of a list to represent a piece of information that comprises four
+ pieces. In this case, our type system simply does not preserve the
+ length information for the list from the input to \scheme|map|.
+
+\paragraph{Definitions} The sample set for definitions of variable-arity
+ functions covers some 120 cases (or some 7\%) from the code base. Our
+ findings naturally sort these samples into three categories:
+\begin{itemize}
+\item A majority of the functions can be typed with uniform rest
+  arguments or use variable arity to simulate optional arguments. For
+  the latter, we recommend that programmers rewrite such functions
+  using \scheme{case-lambda}.
+
+\item Twelve of the 120 inspected definitions are non-uniform and require
+  variable-arity polymorphism. Our type checker can assign types to
+  all of them.  Returning to our example in section~\ref{ssec:beyond-uva},
+  \scheme|verbose| can be given the type
+\begin{schemedisplay}
+  (All (beta alpha ...) ((alpha dotsa -> beta) -> (alpha dotsa -> beta))).
+\end{schemedisplay}
+
+\item The small remainder cannot be typed using our system.
+\end{itemize}
+
+These inspections demonstrate two important points. First,
+ all of the various ways in which Typed Scheme handles varying numbers of
+ arguments are important for type-checking existing Scheme
+ code. Second, our design choices for variable-arity polymorphism mostly
+ capture the programming style used in practice by working PLT Scheme
+ programmers.
+%
+In conclusion, we conjecture that our type system can validate more
+than 95\% of the uses of heterogeneous library functions such as \scheme|map|, that it can
+check 70\% of the close to 1800 definitions, 10\% of which require the
+heterogeneous version of variable-arity polymorphism.
+
+%%% \subsection{Limitations and Future Work}
+
+%%% Typed Scheme currently suffers from two major limitations for the
+%%%  definition of non-uniform variable-arity functions. First, some functions
+%%%  perform calculations that involve the length of the rest argument.  Our
+%%%  type system cannot verify that such operations are type correct. 
+
+%%% %% Also, it is possible to implement optional arguments with variable-arity
+%%% %% functions, but our system cannot type such functions.
+
+%%% Second, there are several type constructors where use of \scheme|...| would
+%%%  make sense, but which we have not yet investigated, e.g., \scheme|(U alpha
+%%%  dotsa)| or \scheme|(List alpha dotsa)|, where the \scheme|List| type
+%%%  constructor represents fixed length, heterogeneous lists. Doing so would
+%%%  help with Scheme functions that deal with fixed-length lists. 
+
+%% Finally, our investigation into the code base reveals an open problem
+%% concerning the \scheme{compose} function. Naturally, in Scheme
+%% \scheme{compose} computes the composition of an arbitrary number of
+%% functions and deals with multiple values. Our type system easily deals with
+%% the full-fledged two-argument version: 
+%% \begin{schemedisplay}
+%% (: compose 
+%%  (All (alpha ...) 
+%%   (All (gamma beta ...)
+%%    ((alpha dotsa -> (Values beta dotsb))
+%%     (beta dotsb -> gamma)
+%%     ->
+%%     (alpha dotsa -> gamma)))))
+%% \end{schemedisplay}
+
+%% Even without considering multiple-value return, however, we know of no type
+%% system that can type-check Scheme's variable-arity \scheme|compose|.
+\end{schemeregion}

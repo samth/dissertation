@@ -1,0 +1,41 @@
+  $$\begin{array}{rcl}
+    \p{} & ::= & \eqv
+           \alt  \plus
+           \alt  \minus
+           \alt  \mult
+           \alt  \ccar
+           \alt  \ccdr
+           \alt  \cnullp \\
+    \v{} & ::= & \n{}
+           \alt  \b{}
+           \alt  \p{}
+           \alt  \enull{\t{}}
+           \alt  \econs{\t{}}{\v{}}{\v{}}
+           \alt   \mabs{\x{}}{\t{}}{\e{}}
+           \alt  \mtabs{\a{}}{\e{}} \\
+           & \alt & \tyabs{\overvec{\a{}}\ \dotted{\a{}}}{\e{}}
+           \alt (\lambda\ (\overvec{[\x{} : \t{}]}\ \rdot\ [\x{} : \starred{\t{}}])\ \e{}) 
+            \alt  (\lambda\ (\overvec{[\x{} : \t{}]}\ \rdot\ [\x{} : \dotted{\t{}}_{\a{}}])\ \e{}) \\
+    \e{} & ::= & \v{}
+           \alt  \x{}
+           \alt  \mcomb{\e{}}{\e{}}
+           \alt  \eif{\e{}}{\e{}}{\e{}} 
+           \alt \econs{\t{}}{\e{}}{\e{}}
+           \alt \lerror \\
+%           \alt  \ESOPcomb{\capply^*}{\e{}\ \overvec{\e{}}\ \e{}} 
+           & \alt & \tcomb{\e{}}{\overvec{\t{}}}
+           \alt  \tcomb{\e{}}{\overvec{\t{}}\ \dotted{\t{}}_{\a{}}}
+           \alt  \ESOPcomb{\capply}{\e{}\ \overvec{\e{}}\ \e{}} \\
+           & \alt & \ESOPcomb{\clift}{\e{}\ \e{}} 
+            \alt  \ESOPcomb{\cany}{\e{}\ \e{}}
+           \alt  \ESOPcomb{\call}{\e{}\ \e{}} \\
+    \t{} & ::= & \num{}
+           \alt  \bool{}
+           \alt  \a{}
+           \alt  \listtype{\t{}} 
+            \alt  \mfuntype{\t{}}{\t{}} \\
+           & \alt & \funtype{\overvec{\t{}}\ \starred{\t{}}}{\t{}}
+           \alt \funtype{\overvec{\t{}}\ \dotted{\t{}}_{\a{}}}{\t{}} 
+           \alt   \malltype{\a{}}{\t{}} 
+           \alt \alltype{\overvec{\a{}}\ \dotted{\a{}}}{\t{}} \\
+  \end{array}$$

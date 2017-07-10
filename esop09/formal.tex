@@ -1,0 +1,223 @@
+\begin{schemeregion}
+
+%\section{A Variable-Arity Type System}
+\label{sec:formal}
+
+\input{formal-cmds}
+
+The development of our formal model starts from the syntax of a multi-arity version of
+System~F~\cite{girard71}, enriched with variable-arity functions.
+A technical
+report~\cite{dots-tr} contains the full set of type rules as well as a semantics and soundness theorem for
+this model.
+
+\section{Syntax}
+
+We extend System F with multiple-arity functions at both the type and term
+ level, lists, as well as functions that accept rest arguments. The use of
+ multiple-arity functions establishes the proper problem context.  Lists and
+ rest-argument functions suffice to explain how both kinds of
+ variable-arity functions interact.
+
+\begin{figure}[t]
+{\small{\input{formal-figs/syntax}}}
+\caption{Syntax\label{fig:dots-syntax}}
+\end{figure}
+
+The grammar in figure~\ref{fig:dots-syntax} specifies the abstract syntax. We use a syntax
+close to that of Typed Scheme, including the use of \cinst{} to denote
+type application.  The use of the vector notation \overvec{\e{}}
+denotes a (possibly empty) sequence of forms (in this case,
+expressions).  In the form $\overvec[n]{\e{k}}$, $n$ indicates the
+length of the sequence, and the term $\e{k_i}$ is the $i$th element.
+The subforms of two sequences of the same length have the same
+subscript, so $\overvec[n]{\e{k}}$ and $\overvec[n]{\t{k}}$ are
+identically-sized sequences of expressions and types, respectively,
+whereas $\overvec[m]{\e{j}}$ is unrelated.  If all vectors are the
+same size the sizes are dropped, but the subscripts remain. Otherwise the
+addition of starred pre-types, dotted type variables, dotted
+pre-types, and special forms is needed to operate on non-uniform
+rest arguments.
+
+A {\em starred pre-type}, which has the form $\starred{\t{}}$ (by
+analogy to the Kleene star), is used in
+the types of uniform variable-arity functions whose rest parameter
+contains values of type $\t{}$.  It appears only  as the last element
+in the domain of a function type or as the type of a uniform
+rest argument.
+
+A {\em dotted type variable}, which has the form $\dotted{\a{}}$, serves as
+a placeholder in a type abstraction.  Its presence signals that the
+type abstraction can be applied to an arbitrary number of types.  A
+dotted type variable can  appear only as the last element in the list
+of parameters to a type abstraction.  We call type abstractions that
+include dotted type variables {\em dotted type abstractions}.
+
+A {\em dotted pre-type}, which has the form $\dotted{\t{}}_{\a{}}$, is a
+type that is parameterized over a dotted type variable.  When a type
+instantiation associates the dotted type variable \dotted{\a{}} with a
+sequence $\overvec[n]{\t{}}$ of types, the dotted pre-type
+$\dotted{\t{}}_{\a{}}$ is replaced by $n$ copies of $\t{}$, where
+$\a{}$ in the $i$th copy of $\t{}$ is replaced with $\t{i}$.  In the
+syntax, dotted pre-types can appear only in the rightmost position of
+a function type, as the type of a non-uniform rest argument, or as the
+last argument to \cinst{}.
+
+In this model the special forms \cany{}, \call{}, and \clift{} are
+restricted to applications involving non-uniform rest arguments, and
+\capply{} is restricted to applications involving rest arguments.
+  In Typed Scheme, of course, the \scheme|map|, \scheme|ormap|,
+  \scheme|andmap| and \scheme|apply| functions work on list types in
+  their most general form.
+
+\section{Type System}
+
+The type system is an extension of the type system of System F to
+handle the new linguistic constructs.  We start with the changes to
+the environments and judgments, plus the major changes to
+the type validity relation.  Next we present relations used for dotted
+types and expressions that have dotted pre-types instead of types.
+Then we discuss the changes to the standard typing relation, and
+finally we discuss the metafunctions used to define the new typing
+judgments.
+
+The environments and judgments used in our type system are similar to
+those used for System F except as follows:
+
+\begin{itemize}
+\item The type variable environment (\D{}) includes both dotted and
+  non-dotted type variables.
+\item There is a new class of environments (\S{}), which map
+  non-uniform rest parameters to dotted pre-types.
+\item There is also an additional validity relation
+  \dtvalid{\D{}}{\dotted{\t{}}_{\a{}}} for dotted pre-types.
+\item The use of \S{} makes typing relation \hasftype{\G{}}{\D{}}{\S{}}{\e{}}{\t{}}  a
+  five-place relation.
+\item There is an additional typing relation
+  \hasfdtype{\G{}}{\D{}}{\S{}}{\e{}}{\dotted{\t{}}_{\a{}}} for
+  assigning dotted pre-types to expressions.
+\end{itemize}
+
+The type validity relation checks the validity of two forms---types
+and dotted type variables.  The additional rules for establishing type
+validity of non-uniform variable-arity types are provided in figure~\ref{fig:tvalid}, along
+with an additional relation which checks the validity of dotted pre-types.
+
+\begin{figure}
+{{\input{formal-figs/tvalid}}}
+\caption{Type Validity rules}
+\label{fig:tvalid}
+\end{figure}
+
+When validating a dotted pre-type $\dotted{\t{}}_{\a{}}$, the bound
+$\a{}$ is checked to make sure that it is indeed a valid dotted type
+variable.  Then $\t{}$ is checked in an environment where the bound is
+allowed to appear free.  It is possible for a dotted pre-type to be
+nested somewhere within a dotted pre-type over the same bound:
+\begin{exmp}
+\begin{schemedisplay}
+(: f (All (alpha ...) 
+       ((alpha dotsa -> alpha) dotsa -> (alpha dotsa -> (Listof Integer)))))
+(define ((count . fs) . args)
+  (map (lambda: ([x : Any]) (if x 1 0))
+       (map (lambda: ([f : (alpha dotsa -> alpha)]) (apply f args))
+	    fs)))
+\end{schemedisplay}
+\end{exmp}
+
+To illustrate how such a type might be used, we instantiate this
+sample type with the sequence of types \num \bool:
+
+\begin{schemedisplay}
+((Integer Boolean -> Integer) (Integer Boolean -> Boolean)
+ -> (Integer Boolean -> (Listof Integer)))
+\end{schemedisplay}
+There are two functions in the domain of the type, each of which
+corresponds to an element in our sequence.  All functions have the same
+domain---the sequence of types; the $i$th function returns the $i$th
+type in the sequence.
+
+\begin{figure}
+$$\begin{array}{c}
+\inferrule[TD-Var]{\S{}(\x{}) = \dotted{\t{}}_{\a{}}}
+                  {\hasfdtype{\G{}}{\D{}}{\S{}}{\x{}}{\dotted{\t{}}_{\a{}}}} 
+\qquad\qquad
+\inferrule[TD-Map]{{\hasfdtype{\G{}}{\D{}}{\S{}}{\e{r}}{\dotted{\t{r}}_{\a{}}}} \\\\
+                    {\hasftype{\G{}}{\D{} \cup \set{\a{}}}{\S{}}{\e{f}}{\funtype{\t{r}}{\t{}}}}}
+                   {\hasfdtype{\G{}}{\D{}}{\S{}}{\ESOPcomb{\clift}{\e{f}\ \e{r}}}{\dotted{\t{}}_{\a{}}}} \\
+\end{array}$$
+\caption{Typing Rules for Pre-types}
+\label{fig:td}
+\end{figure}
+
+The rules in figure~\ref{fig:td} are the typing rules for the two forms of
+expressions that have dotted pre-types.  The {\sc TD-Var} rule 
+ just checks for the variable in \S{}.  The
+{\sc TD-Map} rule assigns a type to a function position.  Since the
+function needs to operate on each element of the sequence represented
+by $\e{r}$, not on the sequence as a whole, the domain of the
+function's type is the base $\t{r}$ instead of the dotted type
+$\dotted{\t{r}}_{\a{}}$.  This type may include free references to the
+bound $\a{}$, however.  Therefore, we must check the function in an
+environment extended with $\a{}$ as a regular type variable.
+
+As expected, most of the typing rules are simple additions of
+multiple-arity type and term abstractions and lists to System F.  For
+uniform variable-arity functions, the introduction rule treats the
+rest parameter as a variable whose type is a list of the appropriate
+type.  There is only one elimination rule, which deals with the
+special form $\capply{}$; other eliminations such as direct
+application to arguments are handled via the coercion rules.
+
+The type rules in figure~\ref{fig:type-rules} concern non-uniform
+variable-arity functions.  These functions also have one introduction
+and one elimination rule.  The rule {\sc T-Ormap}
+and its absent counterpart {\sc T-Andmap} are similar to that of {\sc
+  TD-Map} in that the dotted pre-type bound of the second argument is
+allowed free in the type of the first argument.  In contrast to
+uniform variable-arity functions, non-uniform variable-arity functions
+must be applied with the \capply function in this calculus.
+
+While {\sc T-DTAbs}, the introduction rule for dotted type
+abstractions, follows straightforwardly from the rule for normal type abstractions, the
+elimination rules are different.  There are two elimination
+rules: {\sc T-DTApp} and {\sc T-DTAppDots}.  The former handles type
+application of a dotted type abstraction where the dotted type
+variable corresponds to a sequence of types, and the latter deals with
+the case when the dotted type variable corresponds to a dotted
+pre-type.
+
+\begin{figure}[t]
+\input{formal-figs/type-rules}
+\caption{Selected Type Rules\label{fig:type-rules}}
+\end{figure}
+
+The {\sc T-DTAppDots} rule is more straightforward, as it is just a
+substitution rule.  Replacing a dotted type variable with a dotted
+pre-type is more involved than normal type substitution, however,
+because we need to replace the dotted type variable where it appears
+as a dotted pre-type bound.  The metafunction \substdots{} performs
+this substitution.  Selected cases of the definition of \substdots{}
+appear in figure~\ref{fig:metafuns}; the remaining clauses perform
+structural traversals.
+
+The {\sc T-DTApp} rule must first expand out dotted pre-types that use
+the dotted type variable before performing the appropriate
+substitutions.  To do this, it uses the metafunction \ttransdots{} on a
+sequence of fresh type variables of the appropriate length to expand
+dotted pre-types that appear in the body of the abstraction's type
+into a sequence of copies of their base types.  These copies are first
+expanded with \ttransdots{} and then in each copy the free occurrences
+of the bound are replaced with the corresponding fresh type variable.
+Normal substitution is performed on the result of \ttransdots{},
+mapping each fresh type variable to its corresponding type argument.
+The interesting cases of the definition of \ttransdots{} also appear in
+figure~\ref{fig:metafuns}.
+
+\begin{figure}[t]
+\input{formal-figs/substdots}
+\input{formal-figs/td-type}
+\caption{Subst-dots and trans-dots\label{fig:metafuns}}
+\end{figure}
+
+\end{schemeregion}

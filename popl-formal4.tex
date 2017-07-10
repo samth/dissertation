@@ -1,0 +1,296 @@
+\begin{schemeregion}
+
+\section{Proving Soundness}
+\label{sec:soundness}
+
+Next we turn our attention to the type soundness of \lts.
+Two issues deserve consideration.
+
+\subsection{Typing Intermediate Steps}
+\label{sec:intermed}
+The system as described does not obey the usual subject reduction
+property.\footnote{This problem, with the same solution, is also
+  described in the original paper on Typed Scheme~\cite{thf:popl08}.} 
+ For example, the following program
+
+\begin{schemedisplay}
+  ((lambda ([x : Any])
+     (if (number? x)
+	 (add1 x)
+	 0))
+   #f)
+\end{schemedisplay}
+
+\noindent
+reduces in one step to 
+
+\begin{schemedisplay}
+  (if (number? #f)
+      (add1 #f)
+      0)
+\end{schemedisplay}
+
+\noindent
+which does not typecheck under the typing rules for \lts, since
+\scheme|add1| requires a numeric argument.  Of course, this
+untypeable code is never executed, so the program is actually safe.  
+%
+To solve this problem, we add two new typing rules; see
+figure~\ref{fig:ptrules}.  
+
+\begin{figure}
+  \[
+\inferrule[T-IfTrue]
+{
+  \hastyeff{\e1}{\t1}{\empt}{\bot}{\s1}
+  \\\\
+  \hastyeffphi{\e2}{\t2}{\phii2} {\s2}
+  \\\\
+  \subtype{\t2}{\t{}} \\\\
+  \phii{} = \combfilter{\empt|\bot}{\phii2}{\empt|\empt}
+}
+{\hastyeffphi {\cond{\e1}{\e2}{\e3}} {\t{}}  {\phii{}} {\noeffect}}
+\quad
+\inferrule[T-IfFalse]
+{
+  \hastyeff{\e1}{\t1}{\bot}{\empt}{\s1}
+  \\\\
+  \hastyeffphi{\e3}{\t3}{\phii3} {\s3}
+  \\\\
+  \subtype{\t3}{\t{}} \\\\
+  \phii{} = \combfilter{\bot|\empt}{\empt|\empt}{\phii3}
+}
+{\hastyeffphi {\cond{\e1}{\e2}{\e3}} {\t{}}  {\phii{}} {\noeffect}}
+\]
+
+  \caption{Auxiliary Type Rules for Subject Reduction Proof}
+  \label{fig:ptrules}
+\end{figure}
+
+Since  there is no overlap between \num and \fft, we have that
+$$\hastyeffphi{\comb{\numberp}{\ff}}{\bool}{\bot|\empt}{\noeffect}$$
+Therefore {\sc T-IfFalse} applies to our
+problematic example, allowing the type system to ignore the troublesome 
+\tbranch. With these additional rules, we can proceed to proving the usual 
+subject reduction theorem.
+
+Of course, the original system is still sound.  We can also prove that
+these rules are unnecessary.  Any program which typechecks without
+the new rules also typechecks with them.  Therefore, the system
+without the new rules is sound, since by the soundness theorem for the
+extended system, no runtime errors are possible.  
+
+Further, the existence of the {\sc T-IfTrue} and {\sc T-IfFalse} rules
+demonstrate that Typed Scheme can, in many instances, detect dead code
+in the program.  In many cases, this code is the result of macro
+expansion, but in the case where user-written code is provably
+unreachable, Typed Scheme issues a warning.  
+
+To distinguish uses of these two rules, we will write the judgement
+ $$\hastyeffo{\e{}}{\t{}}{\ph{+}}{\ph{-}}{\s{}}$$ with the use of
+ $\vdash_o$ to indicate that the rules {\sc T-IfFalse} and {\sc
+   T-IfTrue} were not used in the derivation.\footnote{$o$ is a
+   mnemonic for ``original''.}
+
+\subsection{Relating Substitutions and Filters}
+
+\def\tfs{\ma{\empt|\bot}}
+\def\ffs{\ma{\bot|\empt}}
+
+As usual, proving subject reduction for \lts requires a lemma
+showing that  substitution preserves types.  However, this is non-trivial for \lts, since the
+filter set may change in significant ways due to a
+substitution. Consider the example from section~\ref{sec:intermed}. The filter set for
+\scheme|(number? x)| where \scheme|x| has type $\top$ is
+$\num_{\x{}}|\comp{\num}_{\x{}}$.  If we apply the
+substitution $[0/\x{}]$, the resulting expression
+has filter set \tfs. If we instead apply the substitution
+$[\ff/\x{}]$, we get the filter set \ffs.  These resulting filter
+ sets do not have a simple relationship either to each other or 
+to the original filter set.  Therefore, we must have a
+way of incorporating the substitution into the relation between filters as well.
+
+\begin{figure}
+  \[
+\inferrule{
+ \forall \x{} \in \mbox{dom}(\G{}) \subtype{(\G{} + \opp{})(x)}{(\G{} + \op{})(x)}
+}
+{
+  \G{} \vdash \op{} < \opp{}
+}
+\]
+\vspace{.2in}
+\[
+\hastype{\x{}}{\t{}} \models \bot
+\qquad
+\inferrule{\subtype{\t{}' @ \pi}{\t{}}}
+{\hastype{\x{}}{\t{}'} \models \t{\wpi{\x{}}}}
+\qquad
+\inferrule{\notsubtype{\t{}' @ \pi}{\t{}}}
+{\hastype{\x{}}{\t{}'} \models \compt{\wpi{\x{}}}}
+\]
+\[
+\inferrule{\x{} \neq \y{}}
+{\hastype{\x{}}{\t{}'} \models \t{\wpi{\y{}}}}
+\quad
+\inferrule{\x{} \neq \y{}}
+{\hastype{\x{}}{\t{}'} \models \compt{\wpi{\y{}}}}
+\quad
+\inferrule{\hastype{\x{}}{\t{}} \models \p{} \text{ or }
+  \hastype{\x{}}{\t{}'} \not\models \p{}'}
+{\hastype{\x{}}{\t{}'} \models \imp{\p{}'}{\p{}}}
+\]
+
+  \caption{Relations on Filters}
+  \label{fig:filters}
+\end{figure}
+
+
+To describe this relation, first we define a ``more specific than''
+relation on sequences of filters, $\G{} \vdash \op1 < \op2$ (with \op1 more specific),
+; see
+figure~\ref{fig:filters}.  This relation captures the intuition that a
+sequence of filters is more specific if it allows more terms to be
+typed in a given environment.  
+
+Second, we define a ``models'' relation that relates pairs of variables and types
+ to
+filters.  A variable with a type models a filter if it agrees with the types
+specified by the filter for the relevant variables.  Thus 
+$\x{} : \num \models \num_{\x{}}$,  $\x{} : \fft \not\models
+\num_{\x{}}$,  and $\x{} : \fft \models
+\comp{\num}_{\x{}}$.  Using this relation, we can see that if we
+substitute a value \vv{} of type \t{} for a variable \x{} in
+expression \e{}, one half of the filter set of the result is modeled by $\x{} :
+\t{}$, and one is not.  Furthermore, the filter set of the resulting
+term is more specific in the environment without \x{}.
+
+Equipped with this additional machinery, we can state the central lemma 
+about substitution for the subject reduction proof.
+%\newpage
+\begin{lemma}
+\label{lem:subst}
+  If \hastyeffphi [\Delta,\G{},{\movervec[i]{\hastype{\x{}}{\sig{}}}}] {\e{}} {\t{}} {\op{+} | \op{-}} {\s{}}
+
+and \hastyeffphi [] {\vv{}} {\sig{}'} {\phii{0}} {\s{0}}
+
+and \subtype{\sig{}'}{\sig{}}
+
+\noindent
+Then $\hastyeffphi {\subs{\e{}} {\vv{}} {\x{}}} {\t{}'} {\opp{+} | \opp{-}} {\s{}'}$
+
+and \subtype{\t{}'}{\t{}}
+
+and $\hastype{\x{}}{\sig{}'} \models \op{+} \quad \Rightarrow \quad \G{} \vdash \opp{+} < \op{+}$
+
+and $\hastype{\x{}}{\sig{}'} \models \op{-} \quad \Rightarrow \quad \G{} \vdash \opp{-} < \op{-}$
+
+and $\hastype{\x{}}{\sig{}'} \not\models \op{+} \quad \Rightarrow \quad \opp{+} = \bot$
+
+and $\hastype{\x{}}{\sig{}'} \not\models \op{-} \quad \Rightarrow \quad \opp{-} = \bot$
+
+and either $\s{} = \wpi{\x{}} \wedge \s{}' = \noeffect$ or $\s{} = \s{}'$
+
+\end{lemma}
+
+\noindent\textbf{Proof Sketch}
+This lemma is proved by induction on the original type derivation. 
+
+The interesting cases are for the rules for \scheme|if|. In this case,
+we consider the four implications regarding whether the actual type of
+the value $v$ ($\sigma'$) makes the predicate true or false, or
+whether the result is still indeterminate.  If the test implies that
+the then branch is never reached after the substitution, then the
+resulting filter will be $\bot$, and {\sc T-IfFalse} can be used to
+type the result.  Otherwise, the resulting filters are at least as
+strong, and the previous proof of the type of the then branch will
+still work.  The case for the else branch is symmetric. \qed
+
+Given this lemma, we can prove the usual subject reduction and
+progress theorems in the style of \citet{wf:type-soundness}, and then
+prove the irrelevance of the additional type rules.
+
+\begin{lemma}[Preservation]
+  If \hastyeffphi[\ ]{e}{t}{\op{+}|\op{-}}{\noeffect} and $e$ is closed
+  and \reduce{e}{e'}, then
+  \hastyeffphi[\ ]{e'}{t'}{\opp{+}|\opp{-}}{\noeffect} where
+  \subtype{t'}{t} and $\vdash \opp{+} < \op{+}$ and $\vdash \opp{-} <
+  \op{-}$ 
+  and $e'$ is closed.
+\end{lemma}
+
+Note that we need not consider open terms
+for the purpose of proving soundness.  Further, only open terms may
+have filters which reference variable, or objects.  Therefore,
+$\op{+}|\op{-}$ is either $\empt|\empt$, $\empt|\bot$ or $\bot|\empt$ 
+
+\noindent\textbf{Proof Sketch}
+The proof is by cases on the reduction rule used to derive
+\step{e}{e'}.
+In almost all of the cases, the proof is trivial.  The most
+interesting case is for the rule {\sc E-Beta}, where
+lemma~\ref{lem:subst} is used.  For the rules {\sc E-IfTrue} and {\sc
+  E-IfFalse}, note that every value either has filter $\empt|\bot$ or
+$\bot|\empt$. For rule {\sc E-Delta}, we simply need to consider cases
+on which constant is the operand.
+\qed
+
+\begin{lemma}[Progress]
+  If \hastyeffphi[\ ]{e}{t}{\op{+}|\op{-}}{\noeffect} and $e$ is closed
+  then \reduce{e}{e'} or $e$ is a value.
+\end{lemma}
+\noindent\textbf{Proof Sketch}
+By straightforward induction on the derivation of\\
+\hastyeffphi[]{e}{t}{\op{+}|\op{-}}{\noeffect}.
+\qed
+
+\begin{lemma}[Soundness]
+\label{lem:sound}
+  If \hastyeffphi[\ ]{e}{t}{\op{+}|\op{-}}{\noeffect} and $e$ is closed
+  then there is some \vv{} such that \reduces{e}{v} and 
+  \hastyeffphi[\ ]{v}{t'}{\opp{+}|\opp{-}}{\noeffect} where
+  \subtype{t'}{t} and $\vdash \opp{+} < \op{+}$ and $\vdash \opp{-} <
+  \op{-}$ or for all
+  $\e{}'$ where \reduces{\e{}}{\e{}'}, there exists $e''$ such that
+  $\reduce{e'}{e''}$.
+\end{lemma}
+\noindent\textbf{Proof Sketch}
+By the Wright-Felleisen method.
+\qed
+
+Given this theorem, we can conclude soundness for the original system
+at base types (it is stated here for number for conciseness).
+  Note that this is not true for higher types.  For
+example, this program:
+
+\begin{schemedisplay}
+((lambda: ([x : Any]) 
+   (lambda: ([y : Number]) 
+     (if (number? x)
+	 (add1 x)
+	 0)))
+ #t)
+\end{schemedisplay}
+\noindent
+is typable in the original system, but it reduces to a value in one
+step that is typable only in the extended system.
+
+\begin{theorem}[Soundness for the original system]
+ ~\newline  If \hastyeffphio[\ ]{e}{\num}{\op{+}|\op{-}}{\noeffect} and $e$ is closed,
+  then there is some \vv{} such that \reduces{e}{v} and 
+  \hastyeffphio[\ ]{v}{\num}{\empt|\bot}{\noeffect} or for all
+  $\e{}'$ where \reduces{\e{}}{\e{}'}, there exists $e''$ such that
+  $\reduce{e'}{e''}$.
+\end{theorem}
+\noindent\textbf{Proof Sketch}
+First, it is obvious that if
+ \hastyeffphio[\ ]{e}{\num}{\op{+}|\op{-}}{\noeffect}, then
+ \hastyeffphi[\ ]{e}{\num}{\op{+}|\op{-}}{\noeffect}.  Therefore, from
+ lemma~\ref{lem:sound} we have that $\reduces{e}{\vv{}}$ where
+\hastyeffphi[\ ]{v}{t'}{\empt|\bot}{\noeffect} and
+  \subtype{t'}{\num}, unless \e{} reduces infinitely. 
+  Any value whose type is a subtype of
+  \num must be a number, thus \vv{} is a number.   Therefore, 
+\hastyeffphio[\ ]{v}{\num}{\empt|\bot}{\noeffect}, by rule {\sc T-Num}.  \qed
+
+\end{schemeregion}

@@ -1,0 +1,273 @@
+\begin{schemeregion}
+\section{Typing Terms}
+\label{sect:type-one}
+
+The implementation of Typed Scheme illustrates like no other language
+design experiment the power of PLT Scheme's macro system. In this
+section, we explain the process for type-checking a single definition
+or expression, with a focus on type annotations and the use of type
+environments. The following section extends the implementation to
+handle modules.
+
+Typed Scheme is designed to interoperate with PLT Scheme's existing
+macro and module systems. In particular, typed programs should be able
+to use existing macros (provided they produce typecheckable code) and
+define and use new macros. Since it is generally impossible to derive
+type rules for arbitrary macros, the type-checker must analyze the
+program after expansion has eliminated all occurrences of macros and
+reduced the program to core syntax.  This is also the strategy adopted
+by the ACL2 theorem prover for Common Lisp~\cite{acl2-book}.   
+
+\begin{figure}
+\begin{schemedisplay}
+langs ;; typed-scheme
+(provide (rename-out top-interaction HPtop-interaction))
+(define-syntax (top-interaction stx)
+  (syntax-case stx ()
+    [(top-interaction . term)
+     (let ([expanded-term
+	    (local-expand #'term 'top-level null)])
+       (type-check-top-level expanded-term)
+       expanded-term)]))
+ELIDED
+\end{schemedisplay}
+\caption{\variablefont{typed-scheme} module}
+\label{fig:first-typed-scheme-module}
+\end{figure}
+
+The type-checker hooks into the compilation process as a macro using
+the \scheme{HPtop-interaction} interface described in
+section~\ref{sect:syntax:hooks}. The type-checking macro receives the
+original unexpanded program, and it calls \scheme{local-expand} to
+fully expand the program for analysis. The type-checker then either
+approves the expanded program or raises an error, aborting
+compilation. Figure~\ref{fig:first-typed-scheme-module}
+shows the beginning of the \scheme{typed-scheme} language module.
+
+The type-checker has rules for each primitive syntactic form. It knows
+how to assign types to Scheme constants. It also knows the types of
+the Scheme primitive operators.
+%
+When it encounters a programmer-introduced variable, however, it needs
+to find the type of the variable, and although that information is
+present in the original program, type information is not part of fully
+expanded, core Scheme code.
+%
+The rest of this section discusses the treatment of variable types and
+the communication between Typed Scheme's binding forms and its
+type-checker across macro expansion.
+
+\subsection{Variables}
+
+Typed Scheme requires type annotations on binding occurrences of
+many variables;
+type-checking depends on that information. Consequently, the typed
+binding forms and the type-checker employ a protocol regarding the
+communication of variable types.
+
+Type annotations are local to the terms where they appear. They must
+be robust in the face of local expansion and re-expansion. Since the
+type-checker works on the fully-expanded program, it makes sense to
+put the type annotations into the program.
+%
+At the same time, the result of expansion is a core Scheme term, and
+Scheme's primitive syntactic forms are unaware of types and do not
+accept Typed Scheme's typed binding syntax. Syntax properties provide
+an appropriate method for implementing the protocol by attaching type
+information to terms.\footnote{\citet{ch:ultimate-label} present an
+  alternative method for communicating this information through phases
+of a compiler.}
+
+\begin{quotation}\noindent
+\textbf{The Variable Protocol:} Every typed binding form decorates its
+declared variables with a type attached to the \scheme{'type-label}
+syntax property of the bound identifiers.
+\end{quotation}
+
+Typed Scheme implements the variable protocol by defining typed
+binding forms such as \scheme{lambda:} as macros that convert the
+\scheme{[variable : type]} variable syntax into primitive binding
+forms with the types attached to the \scheme{'type-label} syntax
+property of the variable names.
+%
+Figure~\ref{fig:typed-binding-forms} shows the definition of typed
+binding macros.  The \scheme{lambda:} macro expands into the primitive
+\scheme{lambda} form. For each formal parameter name, it creates a new syntax
+object with a \scheme{'type-label} property holding the type.
+%
+Likewise, the \scheme{define:} macro handles typed definitions.  The
+first clause handles the simple case with just a name being bound to a
+value.  The second clause handles the function definition syntax by
+desugaring it to a \scheme{define:} form with an explicit
+\scheme{lambda:} form. It also synthesizes the function type from the
+argument types and the result type, adding it to the expanded
+definition.
+%
+The \scheme|:| annotation form, used chapter~\ref{chap:overview},
+works similarly to \scheme|define:|.  In this section, we focus on
+\scheme|define:| for simplicity.
+
+\begin{figure}
+\begin{schemedisplay}
+(define-syntax (lambda: stx)
+  (syntax-case stx (:)
+    [(lambda: ([formal : formal-type] ...) . body)
+     (with-syntax ([(typed-formal ...)
+                    (map
+                     (lambda (id type)
+                       (syntax-property id 'type-label type))
+                     (syntax->list #'(formal ...))
+                     (syntax->list #'(formal-type ...)))])
+       #'(lambda (typed-formal ...) . body))]))
+
+(define-syntax (define: stx)
+  (syntax-case stx (:)
+    [(define: var : type expr)
+     (identifier? #'var)
+     (with-syntax ([tvar (syntax-property #'var 'type-label #'type)])
+       #`(define #,tvar expr))]
+    [(define: (f [formal formal-type] ...) : result-type . body)
+     #'(define: f : (formal-type ... -> result-type)
+         (lambda: ([formal formal-type] ...) . body)))])
+\end{schemedisplay}
+\caption{Typed definition and binding forms}
+\label{fig:typed-binding-forms}
+\end{figure}
+
+The type-checker, at the other end of the protocol, consumes the
+syntax properties produced by the typed binding forms.  When the
+type-checker encounters a binding form, it scans the bound variables
+and extracts their types with the \scheme{get-id-type} procedure:
+\begin{schemedisplay}
+;; get-id-type : identifier $\rightarrow$ type
+(define-for-syntax (get-id-type id)
+  (let ([type (syntax-property id 'type-label)])
+    (unless type (raise-missing-type-error id))
+    type))
+\end{schemedisplay}
+
+The type-checker maintains a two-part type-environment. One part holds
+the types of global variables, including variables defined via
+\scheme{define:} and all primitive variables. The other part holds the
+lexical variables, such as those bound by \scheme{lambda:} and other
+local binding forms. Figure~\ref{fig:type-env} shows the outline of the
+environment module. The \scheme{declare-type!} operation updates the
+global type environment; \scheme{extend-env} extends the local type
+environment; and \scheme{lookup-env} finds the type of an identifier,
+searching first the local bindings then the global bindings.
+
+
+\begin{figure}
+\begin{schemedisplay}
+langs ;; env
+(provide (all-defined-out))
+
+;; An environment is a (list-of binding).
+
+;; A binding is (make-binding identifier type).
+(define-struct binding (id type))
+
+;; the-type-env : environment
+;; Associates global variables with their types.
+;; Initially contains types for the scheme primitives.
+(define the-type-env ELIDED)
+
+;; declare-type : identifier type $\rightarrow$ void
+;; Add a type association to the global type environment.
+(define (declare-type! id type) ELIDED)
+
+;; empty-env : environment
+;; The empty lexical environment.
+(define empty-env null)
+
+;; extend-env : environment (list-of binding) $\rightarrow$ environment
+(define (extend-env env bindings) ELIDED)
+
+;; lookup-type : lexical-env identifier $\rightarrow$ type
+;; Searches the lexical environment, then the global environment.
+(define (lookup-type env var) ELIDED)
+\end{schemedisplay}
+\caption{Type Environment}
+\label{fig:type-env}
+\end{figure}
+
+The type-checker consumes the information attached to bound
+variables. Figure~\ref{fig:type-checker} lists the code for the
+type-checker.  When the type-checker encounters a definition, it
+extracts the type annotations from the bound identifiers and extends
+the type environment with the new type association. It finally checks
+that the declared type matches the type computed for the right-hand
+side expression.  When the type-checker encounters an expression, it
+switches to expression mode. 
+
+The \scheme{type-check-expr} procedure computes the type of the
+expression.
+%
+\begin{figure}[h!]
+\begin{schemedisplay}
+;; type-check-top-level : syntax $\rightarrow$ void 
+(define-for-syntax (type-check-top-level form)
+  (syntax-case form (define) 
+    [(define var expr)
+     (let* ([var-type (get-id-type #'var)])
+       (declare-type! #'var var-type)
+       (let ([expr-type (type-check-expr #'expr empty-env)])
+         (check-type var-type expr-type form)))]
+    [expr
+     (type-check-expr #'expr empty-env)]))
+
+;; type-check-expr : syntax lexical-env $\rightarrow$ type
+(define-for-syntax (type-check-expr expr env)
+  (syntax-case expr (lambda HPapp ELIDED)
+    [var
+     (identifier? #'var)
+     (lookup-type env #'var)]
+    [(lambda (formal ...) body)
+     (let* ([formal-types
+             (map get-id-type (syntax->list #'(formal ...)))]
+            [formal-bindings
+             (map make-binding
+                  (syntax->list #'(formal ...))
+                  formal-types)]
+            [body-type
+             (type-check-expr #'body
+                              (extend-env env formal-bindings))])
+       (make-function-type formal-types body-type))]
+    [(HPapp op arg ...)
+     (let ([op-type (type-check-expr #'op env)]
+           [arg-types  
+            (map (lambda (arg) (type-check-expr arg env))
+                 (syntax->list #'(arg ...)))])
+       (check-function-type op-type #'op)
+       (check-types (function-type-params op-type)
+                    op-types
+                    expr)
+       (function-type-result op-type))]
+    ELIDED))
+\end{schemedisplay}
+
+{\small
+ These functions are defined using \scheme{define-for-syntax},
+  which creates a value binding in the compile-time environment, so
+  the \scheme{top-interaction} macro can use the procedures.}
+
+\caption{The type-checker}
+\label{fig:type-checker}
+\end{figure}
+%
+In the simplest case, variable reference, the type-checker
+just looks up the type in the type environment. If the variable is not
+present, the \scheme{lookup-env} procedure raises an error.
+%
+When the type-checker sees a \scheme{lambda} form, it gathers the
+types of the bound variables and extends the type environment before
+checking the body in the extended environment. It also uses the types
+of the formals, in addition to the computed type of the body, to
+create the type of the function.
+%
+Finally, the application case involves finding the type of the
+operator, verifying that it is a function type of the right arity, and
+checking the expected parameter types against the actual parameter
+types. If the application is valid, the result is the function's
+result type.
+\end{schemeregion}

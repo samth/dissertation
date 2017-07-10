@@ -1,0 +1,175 @@
+\begin{schemeregion}
+
+\section{Using Logic}
+\label{sec:logic}
+
+\logictrue
+
+
+The second addition enables the type system to reason
+logically about  predicates.  Let us return to
+example~\ref{ex:logic}. At the point where the second
+\scheme| (number? x) | test is performed, the type system must prove that if 
+this expression evaluates to true,
+ \scheme|y| cannot be a string.  We represent this knowledge
+with a new kind of filter, $\imp{\num_{\x{}}}{\comp{\str}_{\y{}}}$.
+This filter should be read as an implication, that if \scheme|x| is a
+number, \scheme|y| is not a string.  The extension to the grammar of
+filters and latent filters is shown in figure~\ref{fig:loggram}.
+
+\begin{figure}
+\[
+  \begin{altgrammar}
+         \p{} &::=&  \dots \lonly{\alt \imp{{\op{}}}{\p{}}} & \mbox{Filters} \\
+         \ph{} & ::=& \dots  \lonly{\alt \imp{\oph{}}{\ph{}}}  & \mbox{Latent Filters} \\
+  \end{altgrammar}
+\]
+\caption{Grammar Extension for Logical Reasoning}
+\label{fig:loggram}
+\end{figure}
+
+
+Such filters are not immediately applicable to modify the type
+environment, so they must be kept around until the implication can be
+discharged.  To
+accomplish this, we extend the type judgement with a proposition
+environment $\Delta$, which is a set of filters (\p{}).  The new judgement has the form
+
+\vspace{-4mm}
+\large
+\[
+  \hastyeffphi{\e{}}{\t{}}{\phii{}}{\s{}}
+\]
+\normalsize
+\noindent
+For almost all of the typing rules, this new environment is passed through
+unchanged.  The only exception is the {\sc T-If} rule, whose 
+redefinition is provided in figure~\ref{fig:logif}.
+%
+There are two important changes.  First, the two halves
+of the filter set of the test, $\op{+}$ and $\op{-}$, are added to the proposition environment for the
+\tebranch, respectively.  Second, these new extended
+environments are used to derive new propositions, $\opp{+}$ and
+$\opp{-}$,
+according to the
+$\Delta \vdash \p{}$ relation, defined in figure~\ref{fig:proves}.
+These new sets of propositions are also used in the typechecking of
+the \tebranch, respectively.
+
+\begin{figure}
+\[
+\logif
+\]
+\caption{If Rule with Logical Environment}
+\label{fig:logif}
+\end{figure}
+
+
+\begin{figure}
+\[
+\inferrule[L-Env]
+{\p{} \in \Delta}
+{\Delta \vdash \p{}}
+\qquad
+\qquad
+\inferrule[L-MP]
+{{\Delta \vdash \op{}} \\ \Delta \vdash \imp{\op{}}{\opp{}}}
+{{\Delta \vdash \opp{}}}
+\]
+\caption{Filter Derivation}
+\label{fig:proves}
+\end{figure}
+
+Our proof system for deriving new propositions is quite simple.  The first rule is environment 
+lookup, and the second is just
+\emph{modus ponens}.  This straightforward system, however, is sufficient
+for handling all the  Scheme idioms  described in this thesis.  Of course,
+extending both the grammar of filter propositions and the set of
+proof rules would add even greater expressivity, which we leave to
+future work in the event that we discover idioms that need it.
+
+\subsection{Generating Implications}
+
+We have seen how filters using implication are used, but not
+where they are generated.  Since we want to use these filters to
+express the semantics of complex
+\scheme|if| expressions, the point in the system to extend is the \cf
+metafunction:
+
+
+$$%
+\begin{array}{l@{\ =\ }l}
+\combfilter{(\op{1_+}|\op{1_-})} {(\op{2_+}|\op{2_-})} {\bot|\empt} & \\
+\multicolumn{2}{r}{\hspace{.5in}\op{1_+},\op{2_+}|
+\logic{(\imp{\op{1_+}}{\op{2_-}}),(\imp{\op{2_+}}{\op{1_-}})}{\empt}}
+\end{array}
+$$
+\noindent
+This pattern corresponds to the encoding of \scheme|and| using
+conditionals.  In particular, \scheme|(and A B)| is encoded as
+\scheme|(if A B #f)|.  Therefore, the \cf rule considers cases where
+the third argument corresponds to false.  
+Thus, instead of having no information if an \scheme|and|
+expression is false, we now have two implications: $\imp{\op{1_+}}{\op{2_-}}$ and
+  $\imp{\op{2_+}}{\op{1_-}}$.  
+
+Of course, other minor changes are required in the other metafunctions
+to abstract and apply filters with implication.  We omit the laborious details.
+
+\subsection{A Logical Example}
+
+\newcommand{\hast}[2]{#1 $:$ #2}
+\def\gzero{\hast{\scheme|input|}{\scheme|(U S N)|},\ {\hast{\scheme|extra|}{\scheme|(Pair A A)|}}}
+\def\gone{\hast{\scheme|input|}{\scheme|N|},\ {\hast{\scheme|extra|}{\scheme|(Pair N A)|}}}
+\def\gtwo{\hast{\scheme|input|}{\scheme|S|},\ {\hast{\scheme|extra|}{\scheme|(Pair N A)|}}}
+
+\def\gzeroname{$\Gamma_0$}
+\def\gonename{$\Gamma_1$}
+\def\gtwoname{$\Gamma_1$}
+
+\def\done{\ma{\num_{\scheme|input|},\num_{\pecar(\scheme|extra|)}}}
+\def\dtwo{\ma{\num_{\pecar(\scheme|extra|)} \supset
+  {\comp{\num}_{\scheme|input|}}, {\comp{\num}_{\scheme|input|}} \supset \num_{\pecar(\scheme|extra|)}}}
+
+\def\dzeroname{$\Delta_0$}
+\def\donename{$\Delta_1$}
+\def\dtwoname{$\Delta_2$}
+\def\dthreename{$\Delta_3$}
+
+\def\dthree{$\num_{\scheme|input|}$}
+\def\dfour{$\comp{\num}_{\scheme|input|}$}
+
+\def\nothing{$; \empt|\empt ; \noeffect$}
+
+
+\input{big-example-deriv}
+
+We now turn again to example~\ref{ex:full}. 
+The expansion into the core forms of \lts is given in
+figure~\ref{fig:ex:full-expanded}.  The full type derivation is given
+in figure~\ref{fig:type-deriv}.  
+%
+Here the filter set for the first
+test expression, expanded into an \scheme|if| expression in
+figure~\ref{fig:ex:full-expanded}, in the \scheme|cond| is
+
+\begin{tabular}{c}
+$\done|$\\
+$(\dtwo)$\\
+\end{tabular}
+
+\noindent
+ abbreviated as $\Delta_1|\Delta_2$.  The first half is added to
+the environment for the first expression, and the second half to the
+environment for the remainder.  Then the filter set for the second
+test expression is 
+$$\num_{\pecar(\scheme|extra|)}|\comp{\num}_{\pecar(\scheme|extra|)}$$
+\noindent
+  Therefore,
+following the {\sc T-If} and {\sc L-MP} rules, the type system can derive
+$\comp{\num}_{\scheme|input|}$ from $\Delta_2$ and $\Delta_3$, and therefore \scheme|input|$:\str$. 
+ The type system can thus prove that \scheme|input| must be a string
+ in the right hand side of the second clause, meaning that the call to
+ \scheme|string->number| is safe.
+
+\end{schemeregion}

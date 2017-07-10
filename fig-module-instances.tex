@@ -1,0 +1,55 @@
+\begin{schemeregion}
+{
+\newcommand\modulebox[4]{%
+\hbox{\framebox{\parbox[t][0.92in][t]{1.0in}{\raggedright{\large #1}\\{\small phase #2}\\{\tiny #4}}}}}
+
+%% \newcommand\modulebox[4]{%
+%% \hbox{\framebox{\vbox{\hbox to 1.6in{\large #1}\hbox{\small phase #2 of #3}\hbox{\footnotesize #4}}}}}
+
+\newcommand\modline{\hbox{\hskip 0.5in\vrule height0.1in width1pt}}
+
+\newcommand\cmodulebox[4]{\modulebox{#1}{#2}{}{#4}}
+\newcommand\rmodulebox[3]{\modulebox{#1}{#2}{}{#3}}
+
+% parts macros
+\newcommand\CT{invoke compile-time part}
+\newcommand\EandCT{expand macros, invoke compile-time parts}
+\newcommand\CTandRT{invoke compile-time and run-time parts}
+
+\begin{figure}
+$$
+\begin{array}{cccc}
+\mbox{compiling \variablefont{storage}} & \mbox{compiling
+  \variablefont{memory}} & 
+\mbox{compiling \variablefont{more}} & \mbox{executing
+  \variablefont{more}} \\ \hline 
+\vbox{%
+\cmodulebox{storage}{0}{storage}{\EandCT}%
+} &
+\vbox{%
+\cmodulebox{storage}{1}{memory}{\CTandRT}%
+\modline%
+\cmodulebox{memory}{0}{memory}{\EandCT}%
+} & 
+\vbox{%
+\vspace{2mm}
+\cmodulebox{storage}{1}{more}{\CTandRT}%
+\modline%
+\cmodulebox{memory}{0}{more}{\CT}%
+\modline%
+\cmodulebox{more}{0}{more}{\EandCT}%
+} &
+\vbox{%
+\rmodulebox{storage}{1}{\CTandRT}%
+\modline%
+\rmodulebox{memory}{0}{\CTandRT}%
+\modline%
+\rmodulebox{more}{0}{\CTandRT}%
+} \\
+\end{array}
+$$
+\caption{Module invocations for the execution of \variablefont{more}}%
+\label{fig:module-invocations}%
+\end{figure}
+}
+\end{schemeregion}

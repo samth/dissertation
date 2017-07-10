@@ -1,0 +1,24 @@
+$$\begin{array}{c}
+\inferrule[TC-ToDFun]{{\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                                {\funtype{\overvec{\t{j}}\ \starred{\t{s}}}
+                                         {\t{}}}} \\\\
+                      {\tvalid{\D{}}{\dotted{\a{}}}} \\
+                      {\tvalid{\D{} - \set{\a{}}}{\t{s}}}}
+                     {\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                               {\funtype{\overvec{\t{j}}\ \dotted{\t{s}}_{\a{}}}
+                                        {\t{}}}}
+\quad
+\inferrule[TC-ToFun]{\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                              {\funtype{\overvec{\t{j}}\ \starred{\t{s}}}
+                                       {\t{}}}}
+                    {\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                              {\funtype{\overvec{\t{j}}}
+                                       {\t{}}}}
+\quad
+\inferrule[TC-Unroll]{\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                               {\funtype{\overvec{\t{j}}\ \starred{\t{s}}}
+                                        {\t{}}}}
+                     {\hasftype{\G{}}{\D{}}{\S{}}{\e{}}
+                               {\funtype{\overvec{\t{j}}\ \t{s}\ \starred{\t{s}}}
+                                        {\t{}}}} \\
+\end{array}$$

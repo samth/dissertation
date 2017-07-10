@@ -1,0 +1,49 @@
+  $\begin{array}{rcl}
+    \E{} & ::= & \hole
+           \alt  (\overvec{\v{}}\ \hole\ \overvec{\e{}})
+           \alt  \mtcomb{\hole}{\t{}} \\
+           & \alt & \eif{\hole}{\e{}}{\e{}}
+           \alt  \econs{\t{}}{\hole}{\e{}}
+           \alt  \econs{\t{}}{\v{}}{\hole} \\
+           & \alt &   \ESOPcomb{\capply^*}{\overvec{\v{}}\ \hole\ \overvec{e{}}}\\
+  \end{array}$
+  
+  $$\begin{array}{l@{\hspace*{0.5em}\red\hspace*{0.5em}}l}
+    \inE{\ecar{\enull{\t{}}}} & 
+      \inE{\lerror} \\
+    \inE{\ecdr{\enull{\t{}}}} & 
+      \inE{\lerror} \\
+    \inE{\tcomb{\tyabs{\overvec{\a{k}}}{\e{}}}{\overvec{\t{k}}}} &
+      \inE{\e{}[\overvec{\a{k} \mapsto \t{k}}]} \\
+    \multicolumn{2}{l}{
+    \inE{\tcomb{\tyabs{\overvec[n]{\a{j}}\ \dotted{\tb{}}}{\e{}}}
+               {\overvec[n]{\t{j}}\ \overvec[m]{\t{k}}}} \hspace*{0.5em} \red
+    } \\
+    \multicolumn{2}{l}{\hspace*{2em}
+      \inE{\etddef{\e{}}[\overvec[n]{\a{j} \mapsto \t{j}},
+                         \overvec[m]{\tb{k} \mapsto \t{k}}]}} \\
+    \multicolumn{2}{l}{
+      \hspace*{1em}\text{where $\overvec[m]{\tb{k}}$ fresh}} \\
+    \inE{\ESOPcomb{(\lambda\ ([\overvec{\x{k} : \t{k}}])\ \e{})}
+              {\overvec{\v{k}}}} &
+      \inE{\e{}[\overvec{\x{k} \mapsto \v{k}}]} \\
+    \multicolumn{2}{l}{
+     \inE{\ESOPcomb{(\lambda\ (\overvec[n]{[\x{j} : \t{j}]} \rdot [\x{s} : \starred{\t{s}}])\ \e{})}
+               {\overvec[n]{\v{j}}\ \overvec[m]{\v{k}}}} \hspace*{0.5em} \red
+     } \\
+     \multicolumn{2}{l}{\hspace*{2em}
+       \E{}[\e{}[\overvec[n]{\x{j} \mapsto \v{j}},} \\
+     \multicolumn{2}{l}{\hspace*{4em}
+       \x{s} \mapsto \econs{\t{s}}{\v{k_1}}
+                           {\econs{\t{s}}{\text{---}}
+                                  {\econs{\t{s}}{\v{k_m}}{\enull{\t{s}}}}}]} \\
+    \multicolumn{2}{l}{
+    \inE{\ESOPcomb{\capply^*}{(\lambda\ (\overvec[n]{[\x{j} : \t{j}]} \rdot [\x{s} : \starred{\t{s}}])\ \e{})\ \overvec[n]{\v{j}}\ \overvec[m]{\v{k}}\ \v{s}}} \hspace*{0.5em} \red
+    } \\
+    \multicolumn{2}{l}{\hspace*{2em}
+      \E{}[\e{}[\overvec[n]{\x{j} \mapsto \v{j}},}\\
+    \multicolumn{2}{l}{\hspace*{4em}
+      \x{s} \mapsto \econs{\t{s}}{\v{k_1}}
+                          {\econs{\t{s}}{\text{---}}
+                                 {\econs{\t{s}}{\v{k_m}}{\v{s}}}}]]} \\
+  \end{array}$$

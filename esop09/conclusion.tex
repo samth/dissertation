@@ -1,0 +1,25 @@
+\section{Conclusion}
+\label{sec:conclude}
+
+In this paper, we have presented a design for polymorphic functions
+with variable arity.  Our system accommodates both uniform and non-uniform
+variadic functions.
+%We have also described how to integrate the
+%system with the rest of the Typed Scheme language, as well as how to
+%extend a local type inference algorithm to handle variable-arity
+%polymorphism.
+We also validated our design against existing Scheme
+and Typed Scheme code.  Typed Scheme with variable-arity polymorphism
+is part of the latest 
+release of PLT Scheme (4.1), available from \Verb|http://plt-scheme.org/|.
+
+In closing, we leave the reader with a final observation on the nature
+of variable-arity polymorphism.  Many existing languages  allow
+functions that accept a variable number of arguments, all of a
+uniform type.  Such functions have types of the form $\tau^*
+\rightarrow \tau$.  To accommodate variable-arity
+polymorphism, however, we must lift this abstraction one level up.  For
+example, given the type \scheme|(All (alpha ...) (alpha dotsa ->
+Boolean))|, the \emph{kind} of this type is simply $\star^*
+\rightarrow \star$.  So we see that \emph{non-uniform} variable arity at the
+type level is reflected in \emph{uniform} variable arity at the kind level.

@@ -1,0 +1,5 @@
+(if (if (number? input) (number? (car extra)) #f)
+    (+ input (car extra))
+    (if (number? (car extra))
+	(+ (string->number input) (car extra))
+	0))

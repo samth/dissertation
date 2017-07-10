@@ -1,0 +1,18 @@
+  $$
+    \inferrule[TE-DVar]{\dotted{\a{}} \in \D{}}{\tvalid{\D{}}{\dotted{\a{}}}}
+    \qquad
+    \inferrule[TE-DFun]{{\dtvalid{\D{}}{\dotted{\t{r}}_{\a{}}}} \\\\
+                        {\overvec{\tvalid{\D{}}{\t{j}}}} \\                         
+                        {\tvalid{\D{}}{\t{}}}}
+                       {\tvalid{\D{}}{\funtype{\overvec{\t{j}}\ \dotted{\t{r}}_{\a{}}}{\t{}}}
+    }
+    \qquad
+    \inferrule[TE-DAll]{\tvalid{\D{} \cup \set{\overvec{\a{j}}, \dotted{\tb{}}}}{\t{}}}
+                       {\tvalid{\D{}}{\alltype{\overvec{\a{j}}\
+                             \dotted{\tb{}}}{\t{}}}} 
+$$
+$$
+\inferrule[TDE-Pretype]{{\tvalid{\D{}}{\dotted{\a{}}}} \\\\
+                         {\tvalid{\D{} \cup \set{\a{}}}{\t{}}}}
+                        {\dtvalid{\D{}}{\dotted{\t{}}_{\a{}}}}
+$$

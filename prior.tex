@@ -1,0 +1,265 @@
+\begin{schemeregion}
+\label{chap:prior}
+
+The design of Typed Scheme builds on extensive prior work. This
+chapter surveys the most important strands. The first
+section discusses the extensive history of static checking for
+untyped languages, in particular LISP and Scheme.  While Typed Scheme
+differs significantly from all of these prior efforts, their design
+choices and experience informed the choices made in creating Typed
+Scheme.
+%
+The second section reviews prior work on designing multi-language
+systems, especially those that use contracts at the boundaries.  
+%
+The third section describes previous solutions to the
+problem of typechecking a language with macros, 
+as it has been explored both in the context of static checkers and soft
+typing.  
+%
+The final section covers two key innovative technologies that
+Typed Scheme builds on--runtime software contracts and module
+systems.  
+
+\section{Static Checking for Scheme and LISP}
+
+The history of programming languages knows many attempts to add or to
+use type information in conjunction with untyped languages. 
+In 1976, \citet{c:typed-lisp} proposed a type system to
+simplify the operation and use of Boyer-Moore-style theorem
+provers~\cite{boyer-moore97}.   
+Since then, the designers of Common Lisp~\cite{cl2} as well as many
+other languages have included type
+declarations in such languages, often to help compilers, sometimes to
+assist programmers. From the late 1980s until recently, people have
+studied soft
+typing~\cite{cf:pldi91,awl:popl94,wc:toplas97,hr:fpca95,ff:toplas99,mff:popl06},
+a form of type inference to assist programmers debug their programs
+statically.  This work has mainly been in the context of Scheme but
+has also been applied to Python~\cite{some-mit-ms-thesis} and Erlang~\cite{mw:erlang}. 
+%Recently,
+%the slogan of ``gradual typing'' has resurrected the LISP-style
+%annotation mechanisms and has had a first impact with its tentative
+%inclusion in Perl6~\cite{tang}.
+
+This section surveys this body of work, starting with previous static
+type systems for Scheme and LISP. 
+
+ \subsection{Static Type Systems}
+
+Many researchers have developed systems that brought together both
+static type systems and LISP or Scheme programming, usually to 
+make it easier to reason about programs.
+ In 1976, Cartwright presented  TYPED
+ LISP~\citeyearpar{c:typed-lisp}.  However, in his paper (section 5) he
+ describes having to abandon the policy of rejecting type-incorrect
+ programs because the types of variables in conditionals had overly
+ broad types, which is precisely the issue that Typed Scheme and
+ occurrence typing address.  TYPED LISP also did not consider the
+ problem of interoperation with untyped code.
+
+ Wand's Semantic Prototyping System (or SPS)~\cite{wand84} included a type
+ system for Scheme programs, designed for implementing denotational
+ models of languages.  The type system did not include any features
+ for handling typical Scheme idioms, nor for interoperating soundly
+ with untyped code.  
+
+ Haynes~\cite{h:infer} designed a type system called Infer based on
+ row types for Scheme.  His system did not accommodate Scheme
+ programming  idioms in the way 
+ that Typed Scheme does, and aimed for complete type inference
+ for all programs, a non-goal of the Typed Scheme project.  However,
+ his system does support restricted forms of variable-arity
+ polymorphism~\cite{dh:var-ar}.  This system is discussed in detail in
+ section~\ref{sec:esop-related}.    
+
+ \citet{m:nisp} developed Nisp, an unsound type system for Common
+ LISP. It allows the description and checking of many types similar to
+ those in Typed Scheme, but does not provide checking for typical LISP
+ idioms.  It also does not provide sound interaction with untyped
+ code.  
+
+ Leavens~\cite{leavens} designed an ML-like type system for Scheme,
+ but made no attempt to accommodate Scheme idioms, or to integrate with
+ untyped code.  
+
+ The Bigloo Scheme compiler~\cite{bigloo} provides a simple type
+ system for Scheme, primarily for the purpose of optimization.  This
+ system does not have safe interoperation with untyped code, nor does
+ it accommodate Scheme idioms.
+
+The Strongtalk system~\cite{strongtalk} includes a sophisticated 
+typechecker for
+ Smalltalk programs, designed by analysis of existing Smalltalk
+ idioms.  The system was therefore able to accomodate large bodies of
+ existing Smalltalk code, including portions of the then-standard
+ library.  However, Strongtalk did not attempt to check the behavior
+ of still-untyped portions of a program.
+
+
+\subsection{Soft Typing}
+
+The goal of the soft typing research agenda is to provide an optional type
+ checker for programs in untyped languages. One key premise is that
+ programmers shouldn't have to write down any type definitions or type
+ declarations. Soft typing should work via type inference only.
+ Another premise is that soft type systems should never prevent
+ programmers from running any program. If the type
+ checker encounters an ill-typed program, it should insert run-time checks that
+ restore typability and ensure that the invariants of the type system
+ are not violated.
+ Naturally, a soft type system should minimize these insertions of
+ run-time checks. Furthermore, since these insertions represent potential
+ failures of type invariants, a good soft type system must allow programmers
+ to inspect the sites of these run-time checks to determine whether they
+ represent genuine errors or weaknesses of the type system. 
+
+ Such soft typing systems are  complex
+ and brittle, however. On one hand, these systems may infer extremely large types
+ for seemingly simple expressions, greatly confusing the
+ programmer, either the original or the maintenance 
+programmer who has taken on old code. On the other hand, a
+ small syntactic change to a program without semantic consequences can
+ introduce vast changes into the types of both nearby and remote
+ expressions. Experiments with undergraduates---representative of 
+ average programmers---suggest that only the very best understood the tools
+ well enough to make sense of the inferred types and to exploit them for
+ the assigned tasks. For the others, these tools turned into time sinks with
+ little benefit.
+
+Roughly speaking, soft typing systems fall into one of two classes, depending
+ on the kind of underlying inference system. The first soft type
+ systems~\cite{cf:pldi91,wc:toplas97,hr:fpca95, h:dynamic-article,
+   am:static-types-dynamic-language} used inference engines 
+ based on Hindley-Milner though with extensible record types. These systems
+ are able to type many actual Scheme programs, including those using
+ outlandish-looking recursive datatypes. Unfortunately, these systems
+ severely suffer from the general Hindley-Milner error-recovery
+ problem. That is, when the type system signals a type error, it is
+ extremely difficult---often impossible---to decipher its meaning and to
+ fix it.
+
+% \footnote{Fagan gives an example of the \scheme|taut| function, which
+%  checks if arbitrary-arity boolean functions are tautologies.  This example
+%  works in Typed Scheme as well.}
+
+In response to this error-recovery problem, others built inference systems
+ based on Shivers's control-flow analyses~\citeyearpar{shivers-thesis} and
+ Aiken's and Heintze's set-based analyses~\cite{awl:popl94,nh:sba}. Roughly
+ speaking, these soft typing systems introduce sets-of-values constraints
+ for variables and values and propagate them via a generalized
+ transitive-closure propagation~\cite{awl:popl94,ff:toplas99}. In this
+ world, it is easy to communicate to a programmer how a value might flow
+ into a particular operation and violate a type invariant, thus eliminating
+ one of the major problems of Hindley-Milner based soft
+ typing~\cite{ffkwf:mrspidey}.
+
+ My experience and evaluation, as well as that of other users of soft
+ typing systems, suggest that Typed Scheme works
+ well compared to soft typing. First, programmers can easily
+ convert entire modules with just a few type declarations and annotations
+ to function headers. Second, assigning explicit types and rejecting programs
+ actually pinpoints errors better than soft typing systems, where
+ programmers must always keep in mind that the type inference system is
+ conservative. Third, soft typing systems do not support type
+ abstractions well. Starting from an explicit,
+ static type system for an untyped language should help introduce these
+ features and deploy them as needed. 
+
+ The prior soft typing research inspired this work on occurrence typing.  These
+ systems employed simplistic \scheme{if}-splitting rules that performed a case
+ analysis for types based on the syntactic predicates in the test
+ expression. This idea was derived from \citet{c:typed-lisp}'s 
+ \texttt{typecase} construct (also see below) and---due to its
+ usefulness---inspired the generalization to occurrence typing.
+ The major advantage of soft
+ typing over an explicitly typed Scheme is that it does not require any
+ assistance from the programmer. In the future, I hope to borrow
+ techniques from soft typing for automating some of the conversion process
+ from untyped modules to typed modules.
+
+\section{Interlanguage Interoperability}
+
+Smooth operation between typed and untyped code is essential to Typed
+Scheme.  The design of this interoperation relies heavily on prior
+work on language interoperation. \citet{gff:oopsla05} developed
+ProfessorJ, which combines PLT Scheme and Java.  Their
+interoperability strategy relies on custom \emph{mirrors}, generated
+specifically for each class, which dynamically check the invariants of
+methods.  They also extend each language with the features of the
+other, using the Java-like class system of PLT
+Scheme~\cite{fff:classes}, and adding first-class functions to their
+implementation of Java.  Their system also automatically generates
+contracts as part of the mirrors for each class. 
+
+\citet{mf:multilang-toplas} consider
+interlanguage interoperability between a typed and untyped lambda
+calculus, and demonstrate the such interoperability corresponds to
+contracts, although their work does not generate contracts.  They
+claim, but do not prove, that only untyped portions of the program can
+be blamed.  However, their system  has only two parties.  
+
+\section{Implementing Types in Scheme}
+
+The implementation of typecheckers for Scheme poses several
+challenges.  First, the typechecker must somehow cope with 
+user-written macros.  Second, the typechecker must accommodate
+pre-existing code in a sound manner, preferably without requiring
+changes to the untyped Scheme implementation.  Third, several systems,
+like Typed Scheme, have implemented the type system via the underlying
+macro system.
+
+The SPS system mentioned above used macros to implement the
+typechecker, although without hygiene.  Typed Scheme scales up the
+approach of SPS to a modern macro and module system, enabling the
+seamless integration between typed and untyped code.
+
+Flanagan's static analyzer for DrScheme~\cite{ffkwf:mrspidey} analyzed
+expanded programs and used syntax source information to display the
+analysis results in the program editor. The analyzer included a macro
+protocol that let programmers annotate their programs with hints for
+the analyzer.
+
+The Ziggurat project~\cite{fs:ziggurat-jfp} has investigated
+alternate approaches to static analysis and other program observations
+in the presence of macros. Analyses in Ziggurat are implemented as
+methods on expression nodes, and derived expression forms (that is,
+macros) may either override analysis methods with special behavior or
+defer to the default analysis of the macro's expansion. Ziggurat
+represents a new approach to defining macro protocols, and it is as
+yet unclear how the Ziggurat approach compares with the mechanisms
+described here.
+
+
+\section{Contracts and Modules}
+
+The design and implementation of Typed Scheme builds heavily on prior
+work in contracts and module systems.  
+
+Runtime software contracts have a long history, but traditionally did
+not support two features necessary for the design of Typed Scheme.
+First, Scheme, and thus Typed Scheme, makes extensive use of
+higher-order language constructs, which must therefore be accommodated
+by the contract system.  Second, Typed Scheme isolates typed from
+untyped code, and thus needs a mechanism for determining which portion
+of the program violated a contract.  
+
+These two shortcomings are addressed by Findler's contract
+system~\cite{ff:ho-contracts}, as implemented in PLT
+Scheme~\cite{plt-tr2009-reference-v4.2.2}.   This system provides
+guarantees that ensure that the appropriate portion of code is blamed
+for violating a contract, even when the violation is of a higher-order
+contract and takes place arbitrarily later in the execution of the
+program.  Typed Scheme builds directly on this system, automatically
+generating contracts from types.  
+
+Typed Scheme also relies on a module system that provides strong
+abstraction barriers, in order to prevent unauthorized access by the
+untyped code to unprotected portions of the typed program.  For Typed
+Scheme, this module system is the PLT module
+system~\cite{f:modules,plt-tr2009-reference-v4.2.2}.  This system
+provides strong abstraction barriers for both values and macros.  It
+also allows Typed Scheme to be implemented entirely as a library,
+using the techniques described in chapter~\ref{chap:impl}.  
+\end{schemeregion}
+

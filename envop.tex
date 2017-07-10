@@ -1,0 +1,64 @@
+\newcommand{\update}[3][\Gamma(\x{})]{\metafont{update}({#1},{#3}_{\ponly{#2}})}
+\newcommand{\updatesimp}[2]{\metafont{update}({#1},{#2})}
+
+\def\EnvPlusUpdate{
+$$
+\begin{array}{@{\Gamma\ +\ }l@{\ =\ }l@{\qquad}l}
+  \t{\wpi{\x{}}},\op{} & (\Gamma,\x{}:\update{\pi}{\t{}}) + \op{}& \\
+  \comp{\t{}}_{\wpi{\x{}}},\op{} & (\Gamma,\x{}:\update{\pi}{\comp{\t{}}}) + \op{}& \\
+  \bot,\op{} & \Gamma' \hspace{.5in} \text{ where } {\forall \x{} \in \mathrm{dom}(\Gamma)}.\Gamma'(\x{}) = \bot\ &\\ %
+  \empt & \Gamma & \\
+%  \p{} & \Gamma,\x{}:\updatesimp{\Gamma(\x{})}{\p{}} & \\
+%  \comp{\t{}}_{\wpi{\x{}}} & \Gamma,\x{}:\update{\pi}{\comp{\t{}}} & \\
+%  \bot & \Gamma' & \text{ where } {\forall \x{}}.\Gamma'(\x{}) = \bot\ \\ %
+\end{array}
+$$
+$$
+\begin{array}{@{}l@{\ =\ }l@{\qquad}l}
+\ifpath
+  \update[\consty{\t{}}{\sig{}}]{\pi::\pecar}{\ups{}} & \consty{\update[\t{}]{\pi}{\ups{}}}{\sig{}}  & \\
+  \update[\consty{\t{}}{\sig{}}]{\pi::\pecar}{\comp{\ups{}}} & \consty{\update[\t{}]{\pi}{\comp{\ups{}}}}{\sig{}}  & \\
+
+  \update[\consty{\t{}}{\sig{}}]{\pi::\pecdr}{\ups{}} & \consty{\t{}}{\update[\sig{}]{\pi}{\ups{}}}  & \\
+  \update[\consty{\t{}}{\sig{}}]{\pi::\pecdr}{\comp{\ups{}}} & \consty{\t{}}{\update[\sig{}]{\pi}{\comp{\ups{}}}}  & \\
+\fi
+  \update[\t{}]{\empt}{\ups{}} & \restrict{\t{}}{\ups{}}& \\
+
+  \update[\t{}]{\empt}{\comp{\ups{}}} & \remove{\t{}}{\ups{}}& \\
+%  \updatesimp{\t{}}{\both} & {\bot} & \\
+\end{array}
+%
+$$
+}
+
+\def\RestrictRemoveOverlap{
+$$
+\begin{array}{@{}l@{\ =\ }l@{\qquad}l}
+  \restrict{\t{}}{\sig{}} & \bot \hfill \text{ if } {\nooverlap{\t{}}{\sig{}}} \\
+  \restrict{(\usym\ \overvec{\t{}})}{\sig{}} & (\usym\ \overvec{\restrict{\t{}}{\sig{}}})& \\
+  \restrict{\t{}}{\sig{}} & \t{} \hfill \text{ if } {\subtype{\t{}}{\sig{}}} \\
+  \restrict{\t{}}{\sig{}} & \sig{} \hfill \text{ otherwise} \vspace{5mm}\\
+  \remove{\t{}}{\sig{}} & \bot \hfill \text{ if } {\subtype{\t{}}{\sig{}}} \\
+  \remove{(\usym\ \overvec{\t{}})}{\sig{}} & (\usym\ \overvec{\remove{\t{}}{\sig{}}})& \\
+  \remove{\t{}}{\sig{}} & \t{}  \hfill \text{  otherwise} \vspace{5mm}\\
+  \nooverlap{\num}{\bool} & \mathrm{true} & \\
+\ifpath
+  \nooverlap{\num}{\consty{\t{}}{\sig{}}} & \mathrm{true} & \\
+  \nooverlap{\bool}{\consty{\t{}}{\sig{}}} & \mathrm{true} & \\
+\fi
+  \nooverlap{\num}{\proctype{\movervec[i]{\t{}}}{\sig{}}{\movervec[i]{\phih{}}}{\sh{}}} & \mathrm{true} & \\
+  \nooverlap{\bool}{\proctype{\movervec[i]{\t{}}}{\sig{}}{\movervec[i]{\phih{}}}{\sh{}}} & \mathrm{true} & \\
+\ifpath
+  \nooverlap
+  {\consty{\t{}}{\sig{}}}
+  {\proctype{\movervec[i]{\ups{a}}}{\ups{r}}{\movervec[i]{\phih{}}}{\sh{}}} & 
+  \mathrm{true} & \\
+\fi
+  \nooverlap{(\usym\ \overvec{\t{}})}{\sig{}} & \bigwedge
+  \overvec{\nooverlap{\t{}}{\sig{}}} & \\
+  \nooverlap{\t{}}{\sig{}} & \mathrm{true} \qquad \hfill \text{ if } \nooverlap{\sig{}}{\t{}}\\
+  \nooverlap{\t{}}{\sig{}} & \mathrm{false} \hfill \text{ otherwise}\\
+\end{array}
+$$
+}
+

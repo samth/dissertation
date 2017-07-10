@@ -1,0 +1,374 @@
+\begin{schemeregion}
+\section{How to Check the Examples}
+\label{sec:semiformal}
+
+This section describes in more detail how Typed Scheme's type system handles some of
+the examples of chapter~\ref{sec:informal} in order to motivate and
+explain the basic ideas of the formal systems described in the
+subsequent chapters.
+
+\subsection{Simple Examples}
+
+In examples~\ref{ex:hello} and \ref{ex:collatz}, typechecking is
+straightforward.  Structures, as in example~\ref{ex:struct}, require
+only slightly more effort---Typed Scheme must understand the
+relationships between the types of the fields and the type of the
+constructor, here \scheme|make-person|, in order to check the
+application of the constructor.  
+
+To facilitate easier programming, type arguments to polymorphic
+functions are automatically synthesized where possible. Argument type
+synthesis uses the local type inference algorithm of
+\citet{pierce:lti}.  It greatly facilitates the use of polymorphic
+functions and makes conversions from Scheme to Typed Scheme
+convenient, while dealing with the subtyping present in the rest of
+the type system in an elegant manner. Furthermore, it ensures that
+type inference errors are always locally confined, rendering them
+reasonably comprehensible to programmers.
+
+\subsection{Typed/Untyped Integration}
+
+The fundamental solution for sound integration between typed and
+untyped code is runtime contracts~\cite{ff:ho-contracts}.  In
+example~\ref{ex:integrate}, a contract checking that \scheme|x| is a
+number is automatically added to module \scheme|m1|, and used to
+protect \scheme|m1| against any malicious use of \scheme|x| by untyped
+code.  A similar contract is automatically generated for
+example~\ref{ex:integrate-reverse}, checking that \scheme|m1|, the
+untyped module in this example, actually produces a number.
+
+For higher-order types, higher-order contracts are generated.  Here,
+protection in both directions is vital, as in
+examples~\ref{ex:ho-integrate} and \ref{ex:ho-integrate-reverse}.  
+
+In chapter~\ref{chap:integrate}, I describe these ideas formally, and
+prove that only untyped modules can receive blame for violating the
+automatically-generated contracts.  
+
+\subsection{Occurrence Typing}
+
+For occurrence typing, we begin by returning to
+example~\ref{ex:simple}:
+\begin{schemedisplay}
+  (if (number? x) (add1 x) 0) ;; \scheme|x| : \scheme|Any|
+\end{schemedisplay}
+\noindent
+In this example, we must propagate information from the test,
+\scheme|(number? x)|, to the \tbranch.  Therefore, in addition to
+determining that the test has the type \scheme|Boolean|, the  typechecker also proves the proposition
+that ``if the test evaluates to \scheme|#t|, then \scheme|x| is a number''.  We
+ write the second part of this proposition as $\num_{\x{}}$, and call
+ it a \emph{filter} (in the formal system, we abbreviate
+ \scheme|Number| as $\num$). 
+  We can combine this information with the original type of 
+\scheme|x| (\scheme|Any|), to get a new environment for checking the
+\tbranch where \scheme|x| has type \scheme|Number|.  
+This new environment is used to check the \tbranch.
+
+The type system must compute this proposition (and thus the new type environment) from the expression
+\scheme|(number? x)|.  First, we need information in the type of
+\scheme|number?| that it is a predicate for the \scheme|Number| type.
+Second, we need information from the operand \scheme|x|, that testing
+it produces information about the variable \scheme|x|.  
+
+We accomplish our first goal with \emph{latent} information on the function type of
+the \scheme|number?| procedure. Such latent information describes not only
+what sorts of values it accepts and produces, but also what
+filter it produces when applied.  We take this notion of latent
+information from work on effect systems by~\citet{lg:effect-systems}
+and say that \scheme|number?| has a \emph{latent filter}.
+
+We accomplish the second by adding a piece of information
+to the type and the propositions, describing which bit of the
+environment is accessed by a given expression.  We refer to this information
+as the \emph{object} of an expression, in this case \scheme|x|.
+
+Given these two pieces of information---the latent filter from
+\scheme|number?| and the object from \scheme|x|---we obtain the filter
+$\num_{\x{}}$ as desired. This, in turn,  is enough to typecheck the rest of the
+\scheme|if| expression.
+
+\subsubsection{Handling Complex Tests}
+
+In example~\ref{ex:numstring}, we have
+
+\begin{schemedisplay}
+  (if (number? x) (add1 x) (string-length x))
+\end{schemedisplay}
+\noindent
+ where \scheme|x| has the type \scheme|(U String Number)|.  To
+ typecheck the \ebranch,
+we also need the information that  \scheme|x| is
+not a \scheme|Number| so that we can deduce
+ that it is  a \scheme|String|.  
+
+To accomplish this, 
+the type checker must propagate the proposition ``\scheme|x| is some element of its original type, but not a \scheme|Number|'' from the test expression to the \ebranch.
+%
+  This proposition is written
+$\comp{\num}_{\x{}}$, and it is straightforward to compute it
+ from the latent filter of the operator and the object of the operand from the 
+test.
+
+With more complex tests, we must combine the filters of different
+subexpressions.  If
+\scheme|(or (number? x) (string? x))| 
+is true, then the value of \scheme|x| must be a member of the
+type \scheme|(U Number String)|, and if it is false then \scheme|x|
+cannot be either of the constituent types (\scheme|Number| or
+\scheme|String|).
+  Using our notation,
+ these can be expressed with the pair of filters $(\usym \num
+\str)_{\x{}}$ and $\comp{(\usym \num \str)}_{\x{}}$, which apply in
+the \tebranch, respectively.  
+
+\def\ns{$(\usym \num \str)_{\x{}}$}
+\def\cns{$\comp{(\usym \num \str)_{\x{}}}$}
+
+For all of the examples we have seen so far, the filters for the 
+\tebranch had a simple relationship.  This is not always the
+case, however.  Consider \scheme|(and (number? x)
+(string? y))|.  If this expression evaluates to \scheme|#t|, then
+\scheme|x| must be a \scheme|Number| and \scheme|y| a
+\scheme|String|.  
+We represent
+this new information with two filters that apply to the \tbranch, $\num_{\x{}}$ and
+$\str_{\y{}}$. 
+%
+If the test evaluates to \scheme|#f|, we do
+not know which of the two individual tests fails, so we
+can't create a new type environment for the \ebranch.  
+ Therefore, no filters apply to the \ebranch.  This is
+why the first example  using \scheme|and| (example~\ref{ex:andone}) is safe,
+but the second (example~\ref{ex:andtwo}) is 
+not; the type of \scheme|x| cannot be refined appropriately.  
+
+\subsubsection{Abstracting over Predicates}
+
+The next challenge is how to include filter information in function types
+for user-defined predicates (see example~\ref{ex:strnum}):
+
+%% If the expression \scheme|(or (number? x) (string? x))| has the filter
+%% \ns\newline
+%% for the \tbranch and the filter \cns for the \ebranch, how
+%% can that information be included in the type of the function 
+
+\begin{schemedisplay}
+  (lambda ([x : Any]) (or (string? x) (number? x)))
+\end{schemedisplay}
+\noindent
+We must first abstract the filter away from the choice of parameter, in this case
+\scheme|x|.  Also, the resulting filter is not immediately available after
+%
+evaluating the entire expression, because the evaluation of a 
+$\lambda$-expression obviously provides
+no information before it is applied.  Therefore, the information in the
+filter, once abstracted, forms the latent filter of the function.
+  This function has the latent filter $(\usym  \str \num)$
+when the result of applying the function is true, and 
+$\comp{(\usym \str \num)}$ 
+when it is false, which are abstractions of the original filters
+ for this disjunction.
+These latent filters implicitly refer to
+whatever the actual argument to the function might be.
+
+Latent filters are also the underlying mechanism for specifying  the
+types  of built-in predicates such as \scheme|string?| and
+\scheme|number?|.  Examples of such latent filters are shown in 
+figure~\ref{fig:dt} on page~\pageref{fig:dt}.
+
+\subsection{Variables, Predicates and Selectors}
+
+% So far, we have only considered tests in which predicates are applied
+% directly to variables, meaning that the relevant \emph{object} is just
+% a variable.  However, we also want to handle predicates applied to
+% expressions involving selectors.  
+Scheme programmers often use predicates on selector expressions such
+as \scheme|(car p)|.  Our type system represents
+such expressions as complex \emph{objects}.
+For example, \scheme|(number? (car p))| 
+involves a predicate with a latent filter applied to an
+expression whose object indicates that it accesses the \scheme|car|
+field of \scheme|p|. We write this object as $\pecar(p)$.  Thus, the
+entire expression has filter $\num_{\pecar(p)}$ (for the \tbranch)
+and  $\comp{\num_{\pecar(p)}}$ (for the \ebranch).
+
+It is also important to abstract over selector expressions.
+  Therefore, in addition to having latent filters, function
+types also have \emph{latent objects}, specifying their access pattern
+on their arguments.  So, just as the abstraction of the filter
+$\num_{x}$ is the latent filter \num, the abstraction of the object
+$\pecar(p)$ is the latent object \pecar.  We refer to a sequence of
+selectors (here $\pecar$) as a \emph{path}.
+
+Of course, a filter involving a non-trivial object can also be
+abstracted into a latent filter, turning $\num_{\pecar(p)}$ into
+$\num_{\pecar}$.  In all of these cases, the key element of abstraction
+is removing the parameter.  
+
+Finally, the Scheme's notion of truth can also be
+expressed using the language of filters.  When an expression such as
+\scheme|x| is used as a test, in the \tbranch \scheme|x| cannot be
+\scheme|#f|, and in the \ebranch it must be \scheme|#f|.  This can
+be expressed with the filter $\comp{\fft}_{\x{}}$ for the \tbranch
+and ${\fft}_{\x{}}$ for the \ebranch.  
+
+\subsection{Reasoning Logically}
+
+Let us now revisit  our assumptions concerning expressions such as
+\scheme|(and (number? x) (string? y))|. If this expression evaluates
+ to \scheme|#f|,  we do know something about the values of \scheme|x| and
+\scheme|y|.  In particular, if we think of the filter for the original
+expression as $\num_{\x{}} \wedge \str_{\y{}}$, then its negation 
+ is, by simple classical logic, $\num_{\x{}} \supset \neg
+\str_{\y{}}$.  We can reinterpret $\neg \str_{\y{}}$ as
+$\comp{\str}_{\y{}}$, giving us $\num_{\x{}} \supset
+\comp{\str}_{\y{}}$, meaning that if \scheme|x| is a number,
+\scheme|y| cannot be a string.  If we take this proposition to be a
+filter, then it can be one of the propositions that we learn upon
+evaluation of the original expression, in the case that it evaluates
+to \scheme|#f|.  If we were to further learn $\num_{\x{}}$, as we
+might from a test like \scheme|(number? x)|, we would also learn that 
+$\comp{\str}_{\y{}}$.  
+This allows the type system to reason in the same way that the
+programmer does and to keep track of (some of) the myriad facts
+available for deducing the partial correctness of a program fragment.  
+
+\subsubsection{The Form of the Type System}
+
+Our examples suggest that four elements are central to the
+operation of the Typed Scheme type system:
+
+\begin{itemize}
+\item Typechecking an expression computes two sets of \emph{filters}, which
+  are propositions that hold when the expression evaluates to 
+  true or false, respectively.
+\item Typechecking an expression also determines an \emph{object} of inquiry,
+  describing the particular piece of the environment pointed to by that
+  expression.  This piece of the environment may also be a portion of
+  a larger data structure, accessed via a \emph{path}.
+\item Filters can be combined via logical connectives to form more
+  complex filters.
+\item \emph{Latent} filters and objects  abstract over a function's parameters.
+  They are included in function types.
+\end{itemize}
+
+In chapters~\ref{chap:occur} and~\ref{chap:occur-extend}, I translate
+these ideas into a calculus, \lts, and its type system.
+
+\subsection{Variable-arity Polymorphism}
+\label{sec:varar-semi}
+To typecheck variable-arity functions, we consider uniform
+variable-arity functions separately from non-uniform variable-arity.    
+
+\subsubsection{Uniform Variable-arity}
+
+ The syntax \scheme{Type$^*$} for the type of rest parameters alludes to
+ the Kleene star for regular expressions.  It signals that in addition to
+ the other arguments, the function takes an arbitrary number of arguments
+ of the given base type.  The form \scheme|Type$^*$| is dubbed a {\em
+ starred pre-type}, because it is not a full-fledged type and may appear
+ only as the last element of a function's domain.
+
+ Returning to example~\ref{ex:var-plus}, typing this definition is
+ straightforward. The type assigned to the rest parameter of starred
+ pre-type \scheme|tau$^*$| in the body of the function is
+ \scheme|(Listof tau)|, a pre-existing type in Typed Scheme.
+
+\subsubsection{Non-uniform Variable-arity}
+
+In contrast, consider the types of \scheme|map| and \scheme|map-with-funcs|
+from examples~\ref{ex:map-dots} and~\ref{ex:map-func-dots}.  
+Our first key innovation is the possibility to attach \scheme|...| to the last
+type variable in the binding position of a \scheme|All| type constructor.
+Such type variables are dubbed {\em dotted type variables}.  Dotted type
+variables signal that this polymorphic type can be instantiated with an arbitrary
+number of types.
+
+Next, the body of \scheme|All| types with dotted type variables may contain
+ expressions of the form \scheme|tau dotsa| for some type \scheme|tau| and
+ a dotted type variable \scheme|alpha|.  These are {\em dotted pre-types};
+ they classify non-uniform rest parameters just like starred pre-types classify
+ uniform rest parameters.  A dotted pre-type has two parts: the base $\tau$
+ and the bound $\alpha$.  Only dotted type variables can be used as the
+ bound of a dotted pre-type. Since \scheme|All|-types are
+ nestable and thus multiple dotted type variables may be in scope,
+ dotted pre-types must specify the bound.
+
+Finally, in example~\ref{ex:fold-left}, we have a substantial
+definition of a variable-arity polymorphic function. Its type shows
+that it accepts at least three arguments: a 
+ function \scheme{f}; an initial element \scheme{c};
+ and at least one list \scheme{as}. 
+ \scheme{fold-left} also consumes additional lists, represented by the
+ sequence \scheme{bss}, which may be empty when no additional lists
+ are provided. For
+ this combination to work out, \scheme{f} must consume as many arguments as
+ the total number of lists provided; in addition, the types of these
+ lists must match 
+ the types of \scheme{f}'s parameters because each list item 
+ becomes an argument. 
+
+Beyond this, the example illustrates that the rest parameter is treated as
+ if it were a place-holder for a plain list parameter. In this particular
+ case, \scheme{bss} is thrice subjected to \scheme{map}-style processing.
+ In general, variable-arity functions should be free to process their rest
+ parameters with existing list-processing functions. 
+
+The challenge is to assign types to such expressions. 
+ List-processing functions expect lists, but the rest parameter has a
+ dotted pre-type. Moreover, the result of list-processing a rest
+ parameter may flow again into a rest-argument position. While the first
+ obstacle is simple to overcome with a conversion from dotted
+ pre-types to list types, the second one is onerous. Since
+ list-processing functions do not return dotted pre-types but list types,
+ we cannot possibly expect that such list types come with enough
+ information for an automatic conversion. 
+
+Thus we use special type rules for the list
+processing of rest parameters with \scheme|map|, \scheme|andmap|, and
+\scheme|ormap|.  Consider \scheme{map}, which returns a list of the
+ same length as the given one and whose component types are in a predictable
+ order.  If \scheme|xs| is classified by the dotted pre-type
+ \scheme|tau dotsa|, and \scheme|f| has type \scheme|(tau -> sigma)|, we classify
+ \scheme|(map f xs)| with the dotted pre-type \scheme|sigma dotsa|.
+ Thus, in the definition of \scheme{fold-left} \scheme|(map car bss)|
+ is classified as the dotted pre-type \scheme|beta dotsb| because
+ \scheme{car} is instantiated at \scheme|((Listof beta) -> beta)| and
+ \scheme|bss| is classified as the dotted pre-type \scheme|(Listof beta)
+ dotsb|.
+
+One way to use such processed rest parameters is in conjunction with
+ \scheme{apply}. Specifically, if \scheme{apply} is passed a variable-arity
+ function \scheme{f}, then its final argument \scheme{l}, which must be a
+ list, must match up with the rest parameter of \scheme{f}.  If the
+ function is a uniform variable-arity procedure and the final argument is a
+ list, typing the use of \scheme|apply| is straightforward. If it is a
+ {\em non-uniform} variable-arity function, the number and types of parameters
+ must match the elements and types of \scheme{l}.
+
+Here is an illustrative example from the definition of \scheme|fold-left|:
+\begin{schemedisplay}
+(apply f c (car as) (map car bss))
+\end{schemedisplay}
+ By the type of
+ \scheme{fold-left}, \scheme|f| has type \scheme|(gamma alpha beta dotsb ->
+ gamma)|.  The types of \scheme|c| and \scheme|(car as)| match the types of
+ the initial parameters to \scheme|f|.  Since the \scheme{map} application
+ has dotted pre-type \scheme{(Listof beta) dotsb} and since the rest parameter
+ position of \scheme|f| is bounded by \scheme|beta|, we are guaranteed that
+ the length of the list produced by \scheme|(map car bss)| matches \scheme|f|'s
+ expectations about its rest argument.  In short, we use
+ the type system to show that we cannot have an arity mismatch,
+ even in the case of \scheme|apply|.
+
+In chapter~\ref{chap:dots}, I describe how to make these ideas
+precise, and prove that such arity mismatches are statically 
+rejected.\footnote{Of course, not all dynamic errors raised by
+  variable-arity functions are statically detected---when \scheme|map|
+is applied to lists of varying length, the error is only reported
+dynamically.} 
+
+
+
+\end{schemeregion}

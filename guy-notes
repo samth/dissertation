@@ -1,0 +1,7 @@
+look for missing Oxford commas.
+
+make sure to fix `collatz'
+
+cycle detection with (f (f x)) - see MIT Memo HackMem
+
+(b ... a ...) (Listof b ...) - maybe mention?

@@ -1,0 +1,113 @@
+\begin{schemeregion}
+\label{chap:exp}
+
+To determine whether Typed Scheme is practical and whether converting
+PLT Scheme programs is feasible, we conducted a series of experiments
+in porting existing Scheme programs of varying complexity to Typed
+Scheme.
+
+\section{Educational Code}
+For small programs, which we expected to be written in a disciplined
+style that would be easy to type-check, we turned to educational
+code.  Our preliminary investigations and type system design indicated
+that programs in the style of {\it How to Design Programs}~\cite{fffk:htdp}
+would type-check successfully with our system, with only type
+annotations required.  
+
+To see how more traditional educational Scheme code would fare, we
+rewrote most programs from  two additional text books: {\it The Little
+  Schemer\/}~\cite{little-schemer} and {\it The Seasoned
+  Schemer\/}~\cite{seasoned-schemer}.  Converting
+these 500 lines of code usually required nothing but the declaration
+of types for function headers.  The only difficulty encountered was
+ an inability to express in our type system some
+invariants on S-expressions that the code relied on.
+
+Second, we ported 1,000 lines of educational code, which consisted of
+the solutions to a number of exercises for an undergraduate
+programming languages course.  Again, handing S-expressions proved the
+greatest challenge, since the code used tests of the form
+\scheme|(pair? (car x))|, which does not provide useful information to
+the type system (formally, the filter of this expression is
+$\epsilon|\epsilon$).  Typing such tests required adding new local bindings.
+This code also made use of a non-standard datatype definition
+facility, which required adaptation to work with Typed Scheme.
+
+\section{Libraries}
+We ported 500 lines of code implementing a variety of data
+structures from S\o gaard~\nocite{galore}'s
+\scheme|galore.plt| library package. While these data structures were
+originally designed for a typed functional language, the
+implementations were not written with typing in mind. Two sorts of
+changes were required for typing this library. First, in several
+places the library failed to check for erroneous input, resulting in potentially surprising
+behavior.  Correcting this required adding tests for the erroneous
+cases.  Second, in about a dozen places throughout the code,
+polymorphic functions needed to be explicitly instantiated in order
+for typechecking to proceed.  These changes were, again, in addition
+to the annotation of bound variables.
+
+\section{Applications}
+Finally, a research intern ported two
+sizable applications under the direction of the first author.  The
+first was a 2,700 line implementation of a game, written in 2007, and
+the second was a 500 line checkbook managing script, maintained for
+ 12 years.
+
+The game is a version of the multi-player card game
+Squadron Scramble.\footnote{Squadron Scramble resembles Rummy; it is
+available from US Game Systems.}  The original implementation consists of
+10 PLT Scheme modules, totaling 2,700 lines of implementation code,
+including 500 lines of unit tests.  
+
+A representative function definition from the game is given in figure
+\ref{f:squad}.  This function creates a \scheme|turn| object, and hands it
+to the appropriate \scheme|player|.  It then checks whether the game is
+over and if necessary, constructs the new state of the game and returns it.
+
+The changes to this complex function are confined to
+the function header.  We have converted the original \scheme|define|
+to \scheme|define:| and provided type annotations for each of the
+formal parameters as well as the return type.  This function 
+returns multiple values, as is indicated by the return type.  Other
+than the header, no changes are required.  The types of all the
+locally bound variables are inferred from their body of the individual
+definitions.  
+
+Structure types are used extensively in this example, as they are in
+the entire implementation.  In the definition of the variables
+\scheme|the-end| and \scheme|the-return-card|, occurrence typing is
+used to distinguish between the \scheme|res| and \scheme|end|
+structures.   
+
+Some portions of the implementation required more effort to port to
+Typed Scheme. For example, portions of the data used for the game is stored
+in external XML files with a fixed format, and the program relies upon
+the details of that format.  However, since this invariant is neither
+checked nor specified in the program, the type system cannot verify it.  Therefore,
+we moved the code handling the XML file into a separate, untyped module of fewer than 50 lines
+that the typed portion uses via \scheme|require/typed|.
+
+
+\begin{figure}
+\schemeinput{squad.scm}
+\caption{A Excerpt from the Squadron Scramble Game}
+\label{f:squad}
+\end{figure}
+
+\section{Scripts}
+The second application ported required similarly few changes.  This
+script maintained financial records recorded in an S-expression
+stored in a file.  The major change made to the program was the
+addition of checks to ensure that data read from the file was in the
+correct format before using it to create the relevant internal
+data structures.  This was similar to the issue encountered with the
+Squadron Scramble game, but since the problem concerned a single
+function, we added the necessary checks rather than creating a new
+module.  The other semantic change to the program was to maintain a
+typing invariant of a data structure by construction, rather
+than after-the-fact mutation.  As in the case of the Galore library,
+we consider this typechecker-mandated change an improvement to
+the original program, even though it has already been used successfully
+for many years.
+\end{schemeregion}

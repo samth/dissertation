@@ -1,0 +1,99 @@
+> Hi Sam,
+> 
+> I'm now working my way through chapter 5, and I've generated a bunch
+> of questions.
+> 
+> Fig 5.4: where did these superscripts (as in [typed subst] or [split])
+> come from? 
+
+I assume you mean in [App-Error], not [TypedSubst], right?
+
+> I see later on p.48 you say they annotate each expression
+> "with the name of its original source module.".  This needs to be made
+> clearer.  
+
+I'll add explanation of this earlier.
+
+> In particular, what happens when code from one module is
+> substituted for a variable in another module?  
+
+If we have this program, labeling the expressions with ^:
+
+ (module m 3^m)  
+
+and then the main expression is:
+
+ m
+
+in one reduction step of [Lookup] we get the main expression:
+
+ 3^m 
+
+which still has the label from the original module.
+
+> Are scalars labelled?
+
+Yes.
+
+> What about newly constructed expressions, as in LAM-LAM?
+
+There is no new expression constructed in [Lam-Lam].  Did you mean
+[Split]?  In that rule, the result application expression should have
+label 'f'.  I'll make that explicit in the figure.
+
+> Do you need SELF variants for LOOKUP or LOOKUP-CONSTRACT?
+
+[Lookup] does not require a variant, since there's nothing different
+to do.
+
+[Lookup-Contract] I will think about more.  Not having the Self
+variant means additional contract checks.  Those contract checks
+can only blame the contracted module, since it is playing *both*
+parties here.  Therefore, the soundness result is not affected.  
+
+However, the intent of PLT contract systems in general, and this one
+in particular, is not to introduce the additional errors that this
+would create.  So I will think about changing the system to add the
+Self rule for contracted modules.
+
+> p. 44, bottom: where did these ": Main"s come from?  Did you mean to
+> make them superscripts?
+
+Those should be superscripts on the <= in the contracts.  I will fix
+the typesetting.
+
+> p 48: "For clarity, we omit these labels wherever they are not needed"
+> Grrr. If the labels are important, they should be in syntax, and
+> carried carefully throughout.
+> 
+> You can create a separate nonterminal of "labelled expressions" (eg t
+> ::= e^l or something like that) if you don't want to be sprouting
+> labels in contexts where they are just carried along opaquely.
+
+I'll work on changing this to use labeled expressions.  That change
+will take slightly longer than the others, though.
+ 
+> p 50: "where M is the name of the now-typed module".  Umm, in Fig 5.2
+> and elsewhere, you use M for a module _text_ and a lower case letter
+> for a module name.
+
+That's terrible.  I'll fix that.
+ 
+> p 51, Fig 5.6. I don't understand this at all.  What does M range
+> over?  Is it a module name, as in mt-modvar, or an expression, as in
+> the hypothesis of mt-modvarself, or a type, as in mt-if0?
+
+Again, terrible confusion of metavariables.  
+
+In [MT-ModVar], M is the name of the typed module.  
+
+In [MT-ModVarSelf], M is again the name of typed module (on the left
+of the :), and the side condition should read "if the module *named* M
+has type t".
+
+In [MT-App] and [MT-If0], M_1 and M_2 are metavariables ranging over
+types.  
+
+I will change all of these to use a sane metavariable convention.  
+
+> --Mitch

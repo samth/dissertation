@@ -1,0 +1,254 @@
+%%% Northeastern University, CCIS dissertation style, based on the
+%%% memoir class. Must be included under \documentclass[12pt]{memoir}
+%%% Made by Vassilis Koutavas, 2008.
+
+%%% Time-stamp: <2009-10-06 16:29:48 samth>
+
+\ProvidesPackage{dissertationfmt}
+
+\typeout{NEU, CCIS Dissertation style by Vassilis Koutavas, 2008}
+
+\RequirePackage{timestamp}
+\RequirePackage{amsthm}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Page margins and lengths
+ 
+\setstocksize{11in}{8.5in} % Letter paper
+\settrimmedsize{\stockheight}{\stockwidth}{*}
+\settrims{0in}{0in}
+\settypeblocksize{*}{33pc}{*} % Idealy 66 chars per line (60-70)
+\setlrmargins{1.6in}{*}{*}  % Margins should be at least 1.25 in each.
+
+% Abstract has no extra margins
+\setlength{\absleftindent}{0pt}
+\setlength{\absrightindent}{0pt}
+
+% header height
+\newlength{\@tmp@headheight}
+\setlength{\@tmp@headheight}{20pt}
+% header separator
+\newlength{\@tmp@headsep}
+\setlength{\@tmp@headsep}{10pt}
+% footer skip
+\newlength{\@tmp@footskip}
+\setlength{\@tmp@footskip}{30pt}
+\setheadfoot{\the\@tmp@headheight}{\the\@tmp@footskip}
+\setheaderspaces{*}{\the\@tmp@headsep}{*}
+
+%%% Top and bottom margins calculation
+% actual whitespace above header and below footer
+\newlength{\@tmp@headspace}
+\setlength{\@tmp@headspace}{1.0in}
+\newlength{\@tmp@footspace}
+\setlength{\@tmp@footspace}{1.0in}
+% calculate header margin and footer margin to achieve the
+% above whitespace
+\newlength{\@tmp@uppermargin}
+\setlength{\@tmp@uppermargin}{\@tmp@headspace}
+%\addtolength{\@tmp@uppermargin}{\the\@tmp@headheight}
+\addtolength{\@tmp@uppermargin}{\@tmp@headsep}
+\newlength{\@tmp@lowermargin}
+\setlength{\@tmp@lowermargin}{\@tmp@footspace}
+% uncomment next line if there is a footer in normal version
+%\addtolength{\@tmp@lowermargin}{\the\@tmp@footskip}
+\setulmarginsandblock{\the\@tmp@uppermargin}{\the\@tmp@lowermargin}{*}
+%% end top and bottom margins calculation
+
+\setmarginnotes{.5ex}{4ex}{10pt}
+
+% fix all lengths
+\checkandfixthelayout
+
+% Test:
+%\newlength{\mylen}
+%\settoheight{\mylen}{100}
+%\typeout{------Footer Height: \the\mylen}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Headings style
+
+\makechapterstyle{ccsthesischapter}{%
+  % Chapters
+  \renewcommand{\chapnamefont}{\normalfont\Large\scshape}
+  \renewcommand{\printchaptername}{\center\chapnamefont \@chapapp}
+  \renewcommand{\chapnumfont}{\normalfont\Large\scshape}
+  \renewcommand{\chaptitlefont}{\normalfont\LARGE}
+  \renewcommand{\printchaptertitle}[1]{\center\chaptitlefont ##1}
+
+  % Sections
+  \setsecheadstyle{\normalfont\Large\bfseries\raggedright} 
+  \setsubsecheadstyle{\normalfont\large\bfseries\raggedright} 
+  \setsubsubsecheadstyle{\normalfont\large\bfseries\raggedright}
+  \setparaheadstyle{\normalfont\normalsize\bfseries}
+  \setsubparaheadstyle{\normalfont\normalsize\bfseries}
+
+  % Abstract
+  \renewcommand{\abstractnamefont}{\normalfont\Huge} 
+  \renewcommand{\abstracttextfont}{\normalfont}
+  \renewcommand{\absnamepos}{flushright}
+
+  % vertical spaces for headings
+  \setbeforesecskip{-18pt \@plus -2pt \@minus -2pt}
+  \setaftersecskip{12pt \@plus 1pt \@minus 1pt}
+  \setbeforesubsecskip{-16pt \@plus -2pt \@minus -2pt}
+  \setaftersubsecskip{11pt \@plus 1pt \@minus 1pt}
+  \setbeforesubsubsecskip{-16pt \@plus -2pt \@minus -2pt}
+  \setaftersubsubsecskip{11pt \@plus 1pt \@minus 1pt}
+  \setbeforeparaskip{11pt \@plus 1pt \@minus 1pt}
+  \setafterparaskip{-1em}
+  \setbeforesubparaskip{11pt \@plus 1pt \@minus 1pt}
+  \setaftersubparaskip{-1em}
+
+  \setlength{\midchapskip}{7pt}
+  \setlength{\abstitleskip}{7pt}
+
+
+  % Numbering
+  \maxsecnumdepth{subsubsection}
+  \setsecnumdepth{subsubsection}
+
+  % Subsections apear in ToC
+  \maxtocdepth{subsection}
+}
+
+\chapterstyle{ccsthesischapter}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Page style
+
+% Start from the headings style
+\copypagestyle{ccsthesispage}{headings}
+\setlength{\headwidth}{\textwidth} 
+\addtolength{\headwidth}{\marginparsep} 
+\addtolength{\headwidth}{\marginparwidth}
+\makeheadposition{ccsthesispage}{flushright}{flushleft}{flushright}{flushleft}
+\makerunningwidth{ccsthesispage}{\headwidth} 
+\makeheadrule{ccsthesispage}{\headwidth}{\normalrulethickness}
+
+% Draft version have extra footers
+\ifdraftdoc
+\RequirePackage[usenames]{color}
+\makeevenfoot{ccsthesispage}%
+  {\color{Gray}\normalfont\small\slshape Book Draft: \today}{}
+{}%  {\color{Gray}\normalfont\small\slshape Chapter SVN Draft: \svndate}
+\def\chaptertimestamp{\timestamp}
+\makeoddfoot{ccsthesispage}% 
+  {\color{Gray}\normalfont\small\slshape Book Draft: \today}{}
+{}%  {\color{Gray}\normalfont\small\slshape Chapter SVN Draft: \svndate}
+\fi
+
+% apply pagestyle
+\pagestyle{ccsthesispage}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Set other parameters
+
+% set double spacing
+\renewcommand{\baselinestretch}{1.5}
+
+%fixes overflowing 3-digit page numbers in ToC
+\setpnumwidth{2.55em}
+%fix overflowing figure numbers in LoF
+\setlength\cftfigurenumwidth{2.9em}
+
+% Captions style (see documentation of ccaption package, which is
+% already included in memoir)
+\captionnamefont{\normalfont\bfseries}
+
+% Abstract in ToC
+\abstractintoc
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{corollary}[theorem]{Corollary}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Title page
+
+% space between each part of the title page
+\newlength{\@titlesecsep}
+\setlength{\@titlesecsep}{5em}
+
+% title format
+\pretitle{\begin{center}\Large}
+\posttitle{\end{center}}
+
+% author format
+\preauthor{\begin{center}\normalsize}
+\postauthor{\end{center}}
+
+% date format
+\predate{\begin{center}\normalsize}
+\postdate{\end{center}}
+
+% format of text in between above fields
+\newcommand{\@titletextstyle}{\normalsize}
+
+% custom maketitle command
+\newcommand{\makeccsthesistitle}{%
+  \begin{titlingpage} 
+    \calccentering{\unitlength} 
+    \begin{adjustwidth*}{\unitlength}{-\unitlength} 
+      \maketitle 
+    \end{adjustwidth*} 
+  \end{titlingpage}
+}
+
+\ifdraftdoc % Layout of draft version
+
+% Draft version has accurate date/time on title
+\date{\slshape Draft date: \today}
+
+\else % Layout of final version
+
+% between title and author
+\renewcommand{\maketitlehookb}{%
+  \vspace*{\@titlesecsep}
+  \begin{center}\@titletextstyle
+    A dissertation presented\\by
+  \end{center}
+  \vspace*{\@titlesecsep}
+}
+% between author and date
+\renewcommand{\maketitlehookc}{%
+  \vspace*{\@titlesecsep}
+  \begin{center}\@titletextstyle
+    to the Faculty of the Graduate School\\
+    of the College of Computer and Information Science\\
+    in partial fulfillment of the requirements for the degree of\\
+    Doctor of Philosophy
+  \end{center}
+  \vspace*{\@titlesecsep}
+  \begin{center}\@titletextstyle
+    Northeastern University\\
+    Boston, Massachusetts
+  \end{center}
+}
+
+% only month, year in date
+\def\today{\ifcase\month\or January\or February\or March\or April\or May\or June\or July\or August\or September\or October\or November\or December\fi,\space \number\year}
+
+\fi
+
+
+
+%%%%%% Signature pages
+
+\typeout{*** TODO: add the signature pages in the final version}
+
+
+
+

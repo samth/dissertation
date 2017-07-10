@@ -1,0 +1,95 @@
+\documentclass{llncs}
+
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{slatex}
+\usepackage{fancyvrb}
+\usepackage{bcprules}
+\usepackage{mmm}
+\usepackage{mathpartir}
+\usepackage{color}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\cpp}{C++}
+\newcommand{\csharp}{C\#}
+
+\newcommand{\fixme}[1]{\footnote{{\bf FIXME:} #1}}
+\newcommand{\tss}[1]{\fixme{#1 -- Stevie}}
+\newcommand{\sth}[1]{\fixme{#1 -- Sam}}
+\newcommand{\mf}[1]{\fixme{#1 -- Matthias}}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\leftcodeskip=\parindent  %0pt plus 1fil
+\rightcodeskip=1pt %% guarantees that no code blocks are broken across a
+		   %% page -- need to do some shuffeling for calculations 
+
+
+
+\defschememathescape{$}
+% this comment is necessary for highlighting in emacs
+%\defschememathescape{$}
+
+\setspecialsymbol{->}{$\rightarrow$}
+\setspecialsymbol{dotsa}{$\dots_{\alpha}$}
+\setspecialsymbol{dotsb}{$\dots_{\beta}$}
+\setspecialsymbol{dotsc}{$\dots_{\gamma}$}
+\setspecialsymbol{alpha}{$\alpha$}
+\setspecialsymbol{beta}{$\beta$}
+\setspecialsymbol{gamma}{$\gamma$}
+\setspecialsymbol{sigma}{$\sigma$}
+\setspecialsymbol{tau}{$\tau$}
+\setspecialsymbol{All}{$\forall$}
+\setspecialsymbol{U}{$\bigcup$}
+
+% Types and type constructors in Typed Scheme
+\setkeyword{Values Boolean Integer : Listof String Number List opt-lambda lambda/kw}
+% Other keywords
+\setkeyword{define-struct define-type-alias define-struct: inst}
+
+\begin{document}
+
+%\conferenceinfo{POPL '09}{January, Savannah GA.} 
+%\copyrightyear{2009} 
+%\copyrightdata{[to be supplied]} 
+
+%\titlebanner{Paper about dots}        % These are ignored unless
+%\preprintfooter{short description of paper}   % 'preprint' option specified.
+
+\title{Practical Variable-Arity Polymorphism}
+
+\author{T. Stephen Strickland \and Sam Tobin-Hochstadt \and
+  Matthias Felleisen}
+\institute{PLT @ Northeastern University}
+
+\maketitle
+
+\input{abstract}
+
+
+%\category{CR-number}{subcategory}{third-level}
+
+%\terms
+%term1, term2
+
+%\keywords
+%keyword1, keyword2
+
+\input{intro}
+\input{overview}
+\input{formal}
+%\input{infer}
+\input{eval}
+\input{related}
+\input{conclusion}
+
+%% \acks
+
+%% Thanks to Richard Cobbe for valuable early work on variable-arity
+%% polymorphism, and to Alec Heller for comments on early drafts of
+%% this paper.
+
+\bibliographystyle{splncs}
+\bibliography{cs,ts-dots}
+
+\end{document}
+
